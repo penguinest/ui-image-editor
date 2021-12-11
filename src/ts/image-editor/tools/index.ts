@@ -5,6 +5,7 @@ import { EditorMode } from '../definitions';
 import { TrackEventsVault } from '../helpers/events/definitions';
 import { LayoutDefinitions, LayoutUtils } from '../helpers/layout';
 import { Area } from '../helpers/layout/definitions';
+import ImageManipulator from './image-manipulator/image-manipulator';
 
 export default class {
   private readonly _mode: EditorMode;
@@ -28,6 +29,28 @@ export default class {
 
     // Store events in order to provide same pointer to removeListenerEvent
     this.mouseEvents = this._mouseEvents();
+  }
+
+  public apply(): string {
+    const { ctx } = this._canvasHandler;
+    const imageManipulator = ImageManipulator(ctx);
+
+    if (this._isModeSelected(EditorMode.CROP)) {
+      const cropArea = this._cropperHandler!.cropInnerArea();
+      if (cropArea) {
+        const area: Area = {
+          bottom: cropArea.Y2,
+          left: cropArea.X1,
+          right: cropArea.X2,
+          top: cropArea.Y1
+        };
+        return imageManipulator.crop(area).url('jpg');
+      }
+    }
+    if (this._isModeSelected(EditorMode.SCALE)) {
+      // TODO: IMPLEMENT ME
+    }
+    return imageManipulator.url('jpg');
   }
 
   public cropArea(): Area | null {

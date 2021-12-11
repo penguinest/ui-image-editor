@@ -41,11 +41,12 @@ class ImageEditor {
     if (!cropArea) {
       return false;
     }
-    // Implement your own logic to transform image accordly.
-    // I.e:
-    // - Server side: sharp
-    // - Client side: cropper.js
-    return true;
+    const url = this._tools.apply();
+
+    // Make something useful with the result.
+    // I.e stored result on server side or
+    // implement a image preview for user validation
+    return !!url;
   }
 
   public async setImageSource(source: string): Promise<boolean> {
