@@ -10,7 +10,8 @@ export const TrackEventName = {
   mousedown: 'mousedown',
   touchstart: 'touchstart',
   touchmove: 'touchmove',
-  touchend: 'touchend'
+  touchend: 'touchend',
+  wheel: 'wheel'
 } as const;
 
 export type TrackEventName = typeof TrackEventName[keyof typeof TrackEventName];

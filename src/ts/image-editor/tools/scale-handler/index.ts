@@ -8,14 +8,7 @@ export default class implements EditorTool {
     console.info('Implement me');
   }
 
-  get mouseEvents(): TrackEventVault {
-    return {
-      mousedown: null,
-      mousemove: null,
-      mouseup: null,
-      touchend: null,
-      touchmove: null,
-      touchstart: null
-    };
+  get mouseEvents(): Partial<TrackEventVault> {
+    return {};
   }
 }

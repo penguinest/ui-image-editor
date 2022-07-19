@@ -1,9 +1,8 @@
 import CropCornerHandler from '@/ts/image-editor/tools/cropper-handler';
-import ScaleHandler from '@/ts/image-editor/tools/scale-handler';
-import CanvasHandler from '@/ts/image-editor/canvas-handler';
+import CanvasHandler from '@/ts/image-editor/tools/canvas-handler';
 import { EditorMode } from '../definitions';
 import { TrackEventsVault } from '../helpers/events/definitions';
-import { LayoutDefinitions, LayoutUtils } from '../helpers/layout';
+import { LayoutDefinitions } from '../helpers/layout';
 import { Area } from '../helpers/layout/definitions';
 import ImageManipulator from './image-manipulator/image-manipulator';
 
@@ -11,24 +10,19 @@ export default class {
   private readonly _mode: EditorMode;
   private readonly _canvasHandler: CanvasHandler;
   private _cropperHandler: CropCornerHandler | null = null;
-  private _scaleHandler: ScaleHandler | null = null;
-  private _sizesSnapShot: LayoutDefinitions.SizeSnapShot = LayoutUtils.initialize.snapshots.dom();
-  public readonly mouseEvents: TrackEventsVault;
+  private readonly _mouseEvents: TrackEventsVault;
 
-  constructor(config: { canvasHandler: CanvasHandler; mode: EditorMode }) {
-    const { canvasHandler, mode } = config;
-    this._canvasHandler = canvasHandler;
+  constructor(config: { canvas: HTMLCanvasElement; mode: EditorMode; restrictedOutput?: LayoutDefinitions.Size; wrapper: HTMLDivElement }) {
+    const { canvas, mode, restrictedOutput, wrapper } = config;
+    this._canvasHandler = new CanvasHandler({ canvas, restrictedOutput, wrapper });
     this._mode = mode;
 
     if (this._isModeSelected(EditorMode.CROP)) {
       this._cropperHandler = new CropCornerHandler(this._canvasHandler);
     }
-    if (this._isModeSelected(EditorMode.SCALE)) {
-      this._scaleHandler = new ScaleHandler();
-    }
 
     // Store events in order to provide same pointer to removeListenerEvent
-    this.mouseEvents = this._mouseEvents();
+    this._mouseEvents = this._createMouseEvents();
   }
 
   public apply(): string {
@@ -36,15 +30,9 @@ export default class {
     const imageManipulator = ImageManipulator(ctx);
 
     if (this._isModeSelected(EditorMode.CROP)) {
-      const cropArea = this._cropperHandler!.cropInnerArea();
-      if (cropArea) {
-        const area: Area = {
-          bottom: cropArea.Y2,
-          left: cropArea.X1,
-          right: cropArea.X2,
-          top: cropArea.Y1
-        };
-        return imageManipulator.crop(area).url('jpg');
+      const cutArea = this.cutArea();
+      if (cutArea) {
+        return imageManipulator.crop(cutArea).url('jpg');
       }
     }
     if (this._isModeSelected(EditorMode.SCALE)) {
@@ -53,73 +41,57 @@ export default class {
     return imageManipulator.url('jpg');
   }
 
-  public cropArea(): Area | null {
-    const area = this._cropperHandler?.cropInnerArea();
-    if (!area) {
-      return null;
-    }
-    const { X1: left, X2: right, Y1: top, Y2: bottom } = area;
-
-    return {
-      bottom,
-      left,
-      right,
-      top
-    };
+  public configureEventListenersState(onInitialize: boolean) {
+    this._canvasHandler.configureEventListenersState({
+      canvasEvents: this._mouseEvents,
+      onInitialize
+    });
   }
 
-  public setSizes({
-    editor,
-    image,
-    sourceChange
-  }: {
-    editor: LayoutDefinitions.EditorOffsetSize;
-    image: LayoutDefinitions.Size;
-    sourceChange?: boolean;
-  }): void {
-    const sizes = {
-      canvas: {
-        ...LayoutUtils.sizeFrom.canvas(this._canvasHandler.canvas),
-        layoutReference: this._canvasHandler.layout
-      },
-      editor: LayoutUtils.sizeFrom.editor(editor),
-      image: LayoutUtils.sizeFrom.image(image)
-    };
+  public cutArea(): Area | null {
+    const area = this._canvasHandler.snapshot.edition.cut;
 
-    const { editor: previousEditor } = this._sizesSnapShot;
-    const { editor: nextEditor } = sizes;
+    return area ?? null;
+  }
 
-    const editorWithUpdatedSizes = previousEditor.width !== nextEditor.width || previousEditor.height !== nextEditor.height;
+  public setOutputSize(size: LayoutDefinitions.Size | null): void {
+    this._canvasHandler.updateRestrictedOutputSize(size);
+  }
 
-    if (sourceChange) {
-      this._cropperHandler?.reset();
+  public setSizes(): void {
+    if (this._canvasHandler.updateSizes()) {
+      this._cropperHandler?.updateSize();
+      this._canvasHandler.reDraw();
+    }
+  }
+
+  public updateImage(image: HTMLImageElement) {
+    if (!this._canvasHandler.setImage(image)) {
+      return;
     }
 
-    if (editorWithUpdatedSizes || sourceChange) {
-      this._sizesSnapShot = sizes;
+    this._canvasHandler.reset();
+    this._cropperHandler?.reset();
 
-      this._cropperHandler?.updateSize(sizes);
-      if (this._scaleHandler) {
-        // TODO: IMPLEMENT ME
-      }
-    }
+    this.setSizes();
   }
 
   private _isModeSelected(mode: EditorMode): boolean {
     return (this._mode & mode) === mode;
   }
 
-  private _mouseEvents(): TrackEventsVault {
+  private _createMouseEvents(): TrackEventsVault {
     const events: TrackEventsVault = {
       mousedown: [],
       mousemove: [],
       mouseup: [],
       touchend: [],
       touchmove: [],
-      touchstart: []
+      touchstart: [],
+      wheel: []
     };
 
-    const rawEvents = [this._cropperHandler?.mouseEvents, this._scaleHandler?.mouseEvents];
+    const rawEvents = [this._cropperHandler?.mouseEvents];
 
     rawEvents.forEach((toolsEvent) => {
       if (toolsEvent) {

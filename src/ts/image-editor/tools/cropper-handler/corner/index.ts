@@ -1,4 +1,4 @@
-import CanvasHandler from '@/ts/image-editor/canvas-handler';
+import CanvasHandler from '@/ts/image-editor/tools/canvas-handler';
 import { LayoutDefinitions } from '../../../helpers/layout';
 import { CornerStyling, DEFAULT_STYLE } from './types';
 

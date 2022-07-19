@@ -53,12 +53,12 @@ export default defineComponent({
       try {
         // ImageEditor will be in charge of validation this objects
         const canvas = canvasEl.value!;
-        const editor = editorEl.value!;
+        const wrapper = editorEl.value!;
 
         if (
           imageEditor.initialize({
             canvas,
-            editor,
+            wrapper,
             mode: EditorMode.CROP
           })
         ) {

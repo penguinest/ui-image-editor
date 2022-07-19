@@ -1,4 +1,5 @@
 import { TrackEventsVault, TrackEventVault } from './helpers/events/definitions';
+import { LayoutDefinitions } from './helpers/layout';
 
 //#region ENUMS
 /**
@@ -18,12 +19,17 @@ export enum EditorMode {
  */
 export interface EditorTool {
   readonly mode: EditorMode;
-  readonly mouseEvents: TrackEventVault | null;
+  readonly mouseEvents: Partial<TrackEventVault>;
 }
 //#endregion INTERFACES
 
 //#region TYPES
-export type ConstructorParameters = { canvas: HTMLCanvasElement; editor: HTMLDivElement; mode: EditorMode };
+export type ConstructorParameters = {
+  canvas: HTMLCanvasElement;
+  wrapper: HTMLDivElement;
+  mode: EditorMode;
+  lockedOutputSize?: LayoutDefinitions.Size;
+};
 
 // Main intention here is accept more event in future
 export type ImageEditorMouseEvents = TrackEventsVault;

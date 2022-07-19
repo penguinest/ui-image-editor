@@ -1,4 +1,4 @@
-import { Area, CanvasSizeWithLayout, EditorOffsetSize, LayoutReference, Position, Ratio, Size, SizeSnapShot } from './definitions';
+import { Area, CardinalArea, WrapperSize, Position, Ratio, Size, Canvas, EditionParams } from './definitions';
 
 /**
  * Calcule the canvas sizes depending on the **wrapper** (editor), the **content** (image) and its **orientation**.
@@ -52,7 +52,7 @@ export const calculeRatio = (input: { canvas: Size; target: Size }): Ratio => {
  */
 const units = {
   area: (): Area => ({ bottom: 0, left: 0, right: 0, top: 0 }),
-  reference: (): LayoutReference => ({ ...units.position(), ...units.ratio() }),
+  cut: (): CardinalArea => ({ x: 0, y: 0, width: 0, height: 0 }),
   position: (): Position => ({ x: 0, y: 0 }),
   ratio: (): Ratio => ({ horizontal: 1, vertical: 1 }),
   size: (): Size => ({ width: 0, height: 0 })
@@ -61,31 +61,37 @@ const units = {
 /**
  * Collection of `snapshots` initialization methods.
  */
-const snapshots = {
-  canvasSizeWithLayout: (): CanvasSizeWithLayout => ({
-    ...units.size(),
-    layoutReference: units.reference()
+const snapshot = {
+  canvas: (): Canvas => ({ relativePosition: units.position(), size: units.size() }),
+  image: (): Size => units.size(),
+  edition: (): EditionParams => ({
+    ratio: units.ratio(),
+    restrictions: {}
   }),
-  dom: (): SizeSnapShot => ({
-    canvas: snapshots.canvasSizeWithLayout(),
-    editor: units.size(),
-    image: units.size()
-  })
+  wrapper: (): Size => units.size()
 };
 
 export const initialize = {
   units,
-  snapshots
+  snapshot
 };
 
 /**
  * Collection of `size` extraction methods.
  */
 export const sizeFrom = {
-  canvas: (input: Size): Size => input,
-  editor: (input: EditorOffsetSize): Size => ({
+  canvas: (input: Size): Size => ({ width: input.width, height: input.height }),
+  relativePosition: (input: HTMLElement): Position => {
+    const { left: x, top: y } = input.getBoundingClientRect();
+    return { x, y };
+  },
+  client: (input: WrapperSize): Size => ({
+    width: input.clientWidth,
+    height: input.clientHeight
+  }),
+  offset: (input: WrapperSize): Size => ({
     width: input.offsetWidth,
     height: input.offsetHeight
   }),
-  image: (input: Size): Size => input
+  image: (input: Size): Size => ({ width: input.width, height: input.height })
 };
