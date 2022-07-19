@@ -1,24 +1,19 @@
-//#region TYPES
-/**
- * Canvas `position` & `ratio` relative to its wrapper.
- * @property `layoutReference` coefficient between **canvas** & **image** HTMLElements
- */
-export type CanvasSizeWithLayout = Size & {
-  layoutReference: LayoutReference;
-};
-
+//#region BASIC
 /**
  * Define rectangle cardinal position.
  * All values **should be** positive.
  */
 export type Area = Record<'top' | 'right' | 'bottom' | 'left', number>;
 
+/**
+ * Define rectangle by origin on cardinal axis & sizes for width/height.
+ */
+export type CardinalArea = Position & Size;
+
 export type EditorOffsetSize = {
   offsetWidth: number;
   offsetHeight: number;
 };
-
-export type LayoutReference = Position & Ratio;
 
 export type Position = {
   x: number;
@@ -40,13 +35,44 @@ export type Size = {
   width: number;
   height: number;
 };
+//#endregion BASIC
+
+//#region COMPLEX
+export type Canvas = {
+  relativePosition: Position;
+  size: Size;
+};
+
+export type EditionParams = {
+  /** Effective cut area expressed with **image dimensions**. */
+  cut?: Area;
+  /** Between canvas & image. Should be smaller than (or equal to) 1. */
+  ratio: Ratio;
+  restrictions: {
+    /** Ratio between **horizontal** and ** vertical** sizes.
+     * - Landscape: `dimensionRatio > 1`
+     * - Portrait: `dimensionRatio < 1`
+     * - Square: `dimensionRatio === 0`
+     */
+    shapeRatio?: number;
+    lockedOutputSize?: Size;
+  };
+};
 
 /**
  * HTMLElements sizes for all `ImageEditor` components.
  */
-export type SizeSnapShot = {
-  canvas: CanvasSizeWithLayout;
-  editor: Size;
+export type EditorSnapShot = {
+  canvas: Canvas;
+  edition: EditionParams;
   image: Size;
+  wrapper: Size;
 };
-//#endregion TYPES
+
+export type WrapperSize = {
+  clientWidth: number;
+  clientHeight: number;
+  offsetWidth: number;
+  offsetHeight: number;
+};
+//#endregion COMPLEX

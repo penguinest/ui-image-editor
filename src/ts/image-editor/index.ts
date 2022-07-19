@@ -1,25 +1,22 @@
 import { ConstructorParameters } from './definitions';
-import { Size } from './helpers/layout/definitions';
+import { LayoutDefinitions } from './helpers/layout';
 import Tools from './tools';
-import CanvasHandler from './canvas-handler';
+
+export * from './definitions';
 
 class ImageEditor {
-  private readonly _canvasHandler: CanvasHandler;
   private readonly _tools: Tools;
-  private readonly _editor: HTMLDivElement;
   private _image: HTMLImageElement | null = null;
 
   constructor(config: ConstructorParameters) {
-    const { canvas, editor, mode } = config;
+    const { canvas, wrapper, lockedOutputSize, mode } = config;
 
-    const context = canvas.getContext('2d');
-    if (!context) {
-      throw new Error('Invalid canvas context.');
-    }
-
-    this._canvasHandler = new CanvasHandler(canvas, context);
-    this._tools = new Tools({ canvasHandler: this._canvasHandler, mode });
-    this._editor = editor;
+    this._tools = new Tools({
+      canvas,
+      mode,
+      restrictedOutput: lockedOutputSize,
+      wrapper
+    });
 
     this._configureEventListenersState({
       onInitialize: true
@@ -37,8 +34,8 @@ class ImageEditor {
     if (!this._image) {
       return false;
     }
-    const cropArea = this._tools.cropArea();
-    if (!cropArea) {
+    const cutArea = this._tools.cutArea();
+    if (!cutArea) {
       return false;
     }
     const url = this._tools.apply();
@@ -51,10 +48,8 @@ class ImageEditor {
 
   public async setImageSource(source: string): Promise<boolean> {
     try {
-      const image = await this._loadImage(source);
-      this._image = image;
-      this._canvasHandler.setImage(image, this._editorSize());
-      this._tools.setSizes({ editor: this._editor, image: this._image, sourceChange: true });
+      this._image = await this._loadImage(source);
+      this._tools.updateImage(this._image);
 
       return true;
     } catch (error) {
@@ -62,6 +57,10 @@ class ImageEditor {
       console.error(error);
     }
     return false;
+  }
+
+  public setOutputSize(size: LayoutDefinitions.Size | null): void {
+    this._tools.setOutputSize(size);
   }
   //#endregion PUBLIC METHODS
 
@@ -79,10 +78,7 @@ class ImageEditor {
       action('resize', (event) => this._onResize(event));
     }
 
-    this._canvasHandler.configureEventListenersState({
-      canvasEvents: this._tools.mouseEvents,
-      onInitialize
-    });
+    this._tools.configureEventListenersState(onInitialize);
   }
 
   /**
@@ -100,26 +96,13 @@ class ImageEditor {
   }
 
   /**
-   * Convert editor element (`HTMLDivElement`) into an `Size` object type.
-   */
-  private _editorSize(): Size {
-    return {
-      width: this._editor.clientWidth,
-      height: this._editor.clientHeight
-    };
-  }
-
-  /**
    * Windows `onresize` event handler.
    * @see _configureEventListenersState
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private _onResize(_event: UIEvent): void {
     if (this._image) {
-      // Update canvas sizes after DOM is reloaded
-      this._canvasHandler.setSizes(this._editorSize());
-
-      // Canvas resets image every time a resize takes place
-      this._tools.setSizes({ editor: this._editor, image: this._image });
+      this._tools.setSizes();
     }
   }
   //#endregion PRIVATE METHODS
@@ -178,5 +161,11 @@ export default class {
     }
 
     return this._handler.setImageSource(source);
+  }
+
+  public setOutputSize(size: LayoutDefinitions.Size | null): void {
+    if (this._handler) {
+      this._handler.setOutputSize(size);
+    }
   }
 }

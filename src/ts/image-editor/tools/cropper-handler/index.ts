@@ -1,38 +1,36 @@
 import { BoundaryIdentity, CornerIdentity } from './corner/types';
-import {
-  CropAreaCorners,
-  CropCanvasArea,
-  CROP_AREA_STYLE,
-  OuterCropArea,
-  InnerCropArea,
-  MouseCursor,
-  DraggingAction,
-  DraggingExection,
-  DEFAULT_MIN_SIZE
-} from './definitions';
+import { CropAreaCorners, MouseCursor, DraggingAction, DraggingExection, DEFAULT_MIN_SIZE } from './definitions';
 import Corner from './corner';
 import { calculeMoveDeltas, initialize, isCornerIdentity, isKnownMouseCursor, mouseCursorByCornerIdentity } from './utils';
 import { cornerIdentityByDeltas } from './corner/utils';
-import CanvasHandler from '../../canvas-handler';
+import CanvasHandler from '../canvas-handler';
 import { EventDefinitions, EventUtils } from '../../helpers/events';
 import { LayoutDefinitions, LayoutUtils } from '../../helpers/layout';
 import { EditorMode, EditorTool } from '../../definitions';
-
+// CONTINUAR AQUI
 export default class implements EditorTool {
   public readonly mode = EditorMode.CROP;
   private readonly _corners: CropAreaCorners;
   private readonly _canvasHandler: CanvasHandler;
-  private _canvasSizeWithLayout = LayoutUtils.initialize.snapshots.canvasSizeWithLayout();
   private _draggingExecution: DraggingExection = initialize.corner();
-  private _imageSizes = LayoutUtils.initialize.units.size();
   private _isTouchDevice = false;
+
+  constructor(canvasHandler: CanvasHandler) {
+    this._corners = Object.values(CornerIdentity)
+      .map((identity) => {
+        return { [identity]: new Corner(canvasHandler) };
+      })
+      .reduce((acc, value) => ({ ...acc, ...value }), {}) as CropAreaCorners;
+
+    this._canvasHandler = canvasHandler;
+  }
 
   //#region GETTERS
   /**
    * Mouse event actions on track event trigger.
    * All `touch` event should `preventDefault` in order to do not double launch actions (after touch event, mouse events are always launch too).
    */
-  get mouseEvents(): EventDefinitions.TrackEventVault {
+  get mouseEvents(): Partial<EventDefinitions.TrackEventVault> {
     return {
       touchstart: (event) => {
         this.__mouseDownEvent(event);
@@ -57,38 +55,7 @@ export default class implements EditorTool {
   }
   //#endregion GETTERS
 
-  constructor(canvasHandler: CanvasHandler) {
-    this._corners = Object.values(CornerIdentity)
-      .map((identity) => {
-        return { [identity]: new Corner(canvasHandler) };
-      })
-      .reduce((acc, value) => ({ ...acc, ...value }), {}) as CropAreaCorners;
-
-    this._canvasHandler = canvasHandler;
-  }
-
   //#region PUBLIC METHODS
-  public cropInnerArea(): InnerCropArea | null {
-    const positionLT = this._corners[CornerIdentity.LT].position;
-    const positionRB = this._corners[CornerIdentity.RB].position;
-    if (positionLT && positionRB) {
-      const { x: X1, y: Y1 } = positionLT;
-      const { x: X2, y: Y2 } = positionRB;
-
-      return { X1, X2, Y1, Y2 };
-    }
-    return null;
-  }
-
-  public cropOuterArea(): OuterCropArea {
-    return {
-      X0: 0,
-      X3: this._imageSizes.width,
-      Y0: 0,
-      Y3: this._imageSizes.height
-    };
-  }
-
   /**
    * Reset all `corners` positions.
    */
@@ -99,17 +66,15 @@ export default class implements EditorTool {
   /**
    * Update crop area once wrappers sizes change.
    */
-  public updateSize(input: { canvas: LayoutDefinitions.CanvasSizeWithLayout; image: LayoutDefinitions.Size }): void {
-    this._canvasSizeWithLayout = input.canvas;
+  public updateSize(): void {
+    const {
+      edition: { ratio }
+    } = this._canvasHandler.snapshot;
 
-    const { layoutReference } = input.canvas;
-    const canvasRatio = Math.min(layoutReference.horizontal, layoutReference.vertical);
+    const canvasRatio = Math.min(ratio.horizontal, ratio.vertical);
 
     if (canvasRatio > 0) {
-      this._imageSizes = input.image;
-      if (this.cropInnerArea()) {
-        this._renderAll();
-      }
+      this._renderAll();
     }
   }
   //#endregion PUBLIC METHODS
@@ -120,9 +85,10 @@ export default class implements EditorTool {
    */
   private _boundaryByPosition(position: LayoutDefinitions.Position): BoundaryIdentity {
     const { x, y } = position;
-    const innerArea = this.cropInnerArea();
-    if (innerArea) {
-      if (x >= innerArea.X1 && x <= innerArea.X2 && y >= innerArea.Y1 && y <= innerArea.Y2) {
+    const innerCut = this._canvasHandler.snapshot.edition.cut;
+
+    if (innerCut) {
+      if (x >= innerCut.left && x <= innerCut.right && y >= innerCut.top && y <= innerCut.bottom) {
         return BoundaryIdentity.INNER;
       }
     }
@@ -133,11 +99,11 @@ export default class implements EditorTool {
    * Note: Image can be larger than actual screen.
    */
   private _calculeMousePosition(rawPosition: LayoutDefinitions.Position): LayoutDefinitions.Position {
-    const canvasLayoutReference = this._canvasSizeWithLayout.layoutReference;
+    const { canvas, edition } = this._canvasHandler.snapshot;
 
     const position = {
-      x: Math.max(Math.round((rawPosition.x - canvasLayoutReference.x) / canvasLayoutReference.horizontal), 0),
-      y: Math.max(Math.round((rawPosition.y - canvasLayoutReference.y) / canvasLayoutReference.vertical), 0)
+      x: Math.max(Math.round((rawPosition.x - canvas.relativePosition.x) / edition.ratio.horizontal), 0),
+      y: Math.max(Math.round((rawPosition.y - canvas.relativePosition.y) / edition.ratio.vertical), 0)
     };
 
     return position;
@@ -163,25 +129,6 @@ export default class implements EditorTool {
     return cornerIdentity;
   }
 
-  private _cropAreaCoodinates(): CropCanvasArea | null {
-    const inner = this.cropInnerArea();
-
-    if (inner) {
-      const outer: OuterCropArea = {
-        X0: 0,
-        X3: this._imageSizes.width,
-        Y0: 0,
-        Y3: this._imageSizes.height
-      };
-
-      return {
-        inner,
-        outer
-      };
-    }
-    return null;
-  }
-
   /**
    * Check if a position belongs to a corner.
    */
@@ -196,58 +143,13 @@ export default class implements EditorTool {
   }
 
   /**
-   * Create inner and outer areas.
-   */
-  private _fillCropArea(): void {
-    const cropArea = this._cropAreaCoodinates();
-
-    if (!cropArea) {
-      return;
-    }
-
-    const { inner: innerCropArea, outer: outerCropArea } = cropArea;
-
-    this._canvasHandler.ctx.save();
-    // Reduce aliasing
-    //ctx.translate(0.5, 0.5);
-    this._canvasHandler.ctx.fillStyle = CROP_AREA_STYLE.fill;
-    this._canvasHandler.ctx.strokeStyle = CROP_AREA_STYLE.stroke;
-    this._canvasHandler.ctx.beginPath();
-
-    //#region Outer rectangle
-    this._canvasHandler.ctx.moveTo(outerCropArea.X0, outerCropArea.Y0);
-    this._canvasHandler.ctx.lineTo(outerCropArea.X3, outerCropArea.Y0);
-    this._canvasHandler.ctx.lineTo(outerCropArea.X3, outerCropArea.Y3);
-    this._canvasHandler.ctx.lineTo(outerCropArea.X0, outerCropArea.Y3);
-    this._canvasHandler.ctx.lineTo(outerCropArea.X0, outerCropArea.Y0);
-    this._canvasHandler.ctx.closePath();
-    this._canvasHandler.ctx.stroke();
-    //#endregion Outer rectangle
-
-    //#region Inner rectangle
-    // Reduce aliasing
-    //ctx.translate(0.5, 0.5);
-    this._canvasHandler.ctx.moveTo(innerCropArea.X1, innerCropArea.Y1);
-    this._canvasHandler.ctx.lineTo(innerCropArea.X1, innerCropArea.Y2);
-    this._canvasHandler.ctx.lineTo(innerCropArea.X2, innerCropArea.Y2);
-    this._canvasHandler.ctx.lineTo(innerCropArea.X2, innerCropArea.Y1);
-    this._canvasHandler.ctx.lineTo(innerCropArea.X1, innerCropArea.Y1);
-    this._canvasHandler.ctx.closePath();
-    //#endregion Inner rectangle
-
-    this._canvasHandler.ctx.fill();
-    this._canvasHandler.ctx.restore();
-  }
-
-  /**
    * Render all crop related items on the canvas, this affects to corners & crop inner and outer areas.
    */
   private _renderAll(): void {
-    this._canvasHandler.reDraw();
-    this._fillCropArea();
-    Object.values(this._corners).forEach((corner) =>
-      corner.render(this._canvasSizeWithLayout.layoutReference.horizontal, this._isTouchDevice)
-    );
+    //this._canvasHandler.reDraw();
+    const { ratio } = this._canvasHandler.snapshot.edition;
+
+    Object.values(this._corners).forEach((corner) => corner.render(ratio.horizontal, this._isTouchDevice));
   }
 
   /**
@@ -287,13 +189,13 @@ export default class implements EditorTool {
    * @see DraggingAction.RESIZE
    */
   private _moveCorner({ cornerIdentity, position }: { cornerIdentity: CornerIdentity; position: LayoutDefinitions.Position }): void {
-    const cropArea = this.cropInnerArea();
+    const cropArea = this._canvasHandler.snapshot.edition.cut;
 
     if (!cropArea) {
       throw new Error('Invalid crop area.');
     }
 
-    let { Y1: top, X2: right, Y2: bottom, X1: left } = cropArea;
+    let { bottom, left, right, top } = cropArea;
 
     //#region calcule horizontal position
     switch (cornerIdentity) {
@@ -349,13 +251,13 @@ export default class implements EditorTool {
    * @see DraggingAction.MOVE
    */
   private _moveCropArea(position: LayoutDefinitions.Position) {
-    const innerAreaPosition = this.cropInnerArea();
+    const innerAreaPosition = this._canvasHandler.snapshot.edition.cut;
     const startPosition = this._draggingExecution.start;
 
     if (innerAreaPosition && startPosition) {
-      const outerBoundaries = this.cropOuterArea();
+      const outerBoundaries = this._canvasHandler.snapshot.image;
 
-      let { X1: left, X2: right, Y1: top, Y2: bottom } = innerAreaPosition;
+      let { left, right, top, bottom } = innerAreaPosition;
 
       const deltas = calculeMoveDeltas(startPosition, position);
       const moveDeltas = {
@@ -364,14 +266,14 @@ export default class implements EditorTool {
       };
 
       if (deltas.x > 0) {
-        moveDeltas.x = Math.min(right + deltas.x, outerBoundaries.X3) - right;
+        moveDeltas.x = Math.min(right + deltas.x, outerBoundaries.width) - right;
       } else if (deltas.x < 0) {
-        moveDeltas.x = Math.max(left + deltas.x, outerBoundaries.X0) - left;
+        moveDeltas.x = Math.max(left + deltas.x, 0) - left;
       }
       if (deltas.y > 0) {
-        moveDeltas.y = Math.min(bottom + deltas.y, outerBoundaries.Y3) - bottom;
+        moveDeltas.y = Math.min(bottom + deltas.y, outerBoundaries.height) - bottom;
       } else if (deltas.y < 0) {
-        moveDeltas.y = Math.max(top + deltas.y, outerBoundaries.Y0) - top;
+        moveDeltas.y = Math.max(top + deltas.y, 0) - top;
       }
 
       if (moveDeltas.x === 0 && moveDeltas.y === 0) {
@@ -408,7 +310,9 @@ export default class implements EditorTool {
   /**
    * Set corner position.
    */
-  private _setPositions({ bottom, left, right, top }: { bottom: number; left: number; right: number; top: number }) {
+  private _setPositions(area: LayoutDefinitions.Area) {
+    const { bottom, left, right, top } = this._canvasHandler.setInnerArea(area);
+
     this._corners[CornerIdentity.LT].setPosition({ x: left, y: top });
     this._corners[CornerIdentity.LM].setPosition({ x: left, y: top + (bottom - top) / 2 });
     this._corners[CornerIdentity.LB].setPosition({ x: left, y: bottom });
@@ -444,13 +348,18 @@ export default class implements EditorTool {
     const position = this._calculeMousePosition(trackPosition);
 
     if (draggingAction === DraggingAction.NONE) {
-      if (this.cropInnerArea()) {
+      if (this._canvasHandler.snapshot.edition.cut) {
         const currentCursor = isKnownMouseCursor(target.style.cursor) ? target.style.cursor : MouseCursor.Auto;
         const cornerIdentity = this._cornerIdByPosition(position);
         const nextCursor = (cornerIdentity && mouseCursorByCornerIdentity(cornerIdentity)) ?? this._mouseCursorAreaByPosition(position);
 
         if (nextCursor && nextCursor !== currentCursor) {
           target.style.cursor = nextCursor;
+        }
+
+        // Protect against mouse cursor change.
+        if (currentCursor !== MouseCursor.Auto) {
+          event.stopImmediatePropagation();
         }
       }
     } else if (draggingAction === DraggingAction.RESIZE) {
@@ -490,7 +399,7 @@ export default class implements EditorTool {
       if (boundaryIdentity === BoundaryIdentity.INNER) {
         this._setDraggingExecution(DraggingAction.MOVE, position);
       } else {
-        if (!this.cropInnerArea()) {
+        if (!this._canvasHandler.snapshot.edition.cut) {
           this._setDraggingExecution(DraggingAction.CREATE, position);
         }
       }
