@@ -150,7 +150,7 @@ export default class {
     }
 
     const effectiveSize = LayoutUtils.calculeEffectiveSize({
-      editor: LayoutUtils.sizeFrom.offset(this._wrapper),
+      editor: LayoutUtils.sizeFrom.client(this._wrapper),
       image: this._image
     });
 
@@ -216,17 +216,16 @@ export default class {
     //#region Inner rectangle
     // Reduce aliasing
     //ctx.translate(0.5, 0.5);
-    this.ctx.moveTo(innerCut.top, innerCut.left);
-    this.ctx.lineTo(innerCut.top, innerCut.right);
-    this.ctx.lineTo(innerCut.bottom, innerCut.right);
-    this.ctx.lineTo(innerCut.bottom, innerCut.left);
-    this.ctx.lineTo(innerCut.top, innerCut.left);
+    this.ctx.moveTo(innerCut.left, innerCut.top);
+    this.ctx.lineTo(innerCut.left, innerCut.bottom);
+    this.ctx.lineTo(innerCut.right, innerCut.bottom);
+    this.ctx.lineTo(innerCut.right, innerCut.top);
+    this.ctx.lineTo(innerCut.left, innerCut.top);
     this.ctx.closePath();
     //#endregion Inner rectangle
 
     this.ctx.fill();
     this.ctx.restore();
-    console.log(innerCut);
   }
 
   /**

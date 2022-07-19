@@ -60,8 +60,8 @@ export default class {
 
   public setSizes(): void {
     if (this._canvasHandler.updateSizes()) {
-      this._cropperHandler?.updateSize();
       this._canvasHandler.reDraw();
+      this._cropperHandler?.updateSize();
     }
   }
 

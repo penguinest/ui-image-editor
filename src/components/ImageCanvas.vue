@@ -42,7 +42,6 @@ export default defineComponent({
     };
     const toggleVerticalImage = () => {
       useVerticalImage.value = !useVerticalImage.value;
-      console.log(`toogle ${useVerticalImage.value}`);
     };
     //![1] Methods definition
 

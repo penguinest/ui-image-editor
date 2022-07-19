@@ -86,6 +86,7 @@ export default class implements EditorTool {
   private _boundaryByPosition(position: LayoutDefinitions.Position): BoundaryIdentity {
     const { x, y } = position;
     const innerCut = this._canvasHandler.snapshot.edition.cut;
+
     if (innerCut) {
       if (x >= innerCut.left && x <= innerCut.right && y >= innerCut.top && y <= innerCut.bottom) {
         return BoundaryIdentity.INNER;
@@ -145,7 +146,7 @@ export default class implements EditorTool {
    * Render all crop related items on the canvas, this affects to corners & crop inner and outer areas.
    */
   private _renderAll(): void {
-    this._canvasHandler.reDraw();
+    //this._canvasHandler.reDraw();
     const { ratio } = this._canvasHandler.snapshot.edition;
 
     Object.values(this._corners).forEach((corner) => corner.render(ratio.horizontal, this._isTouchDevice));
