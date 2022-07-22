@@ -40,7 +40,7 @@ export default class {
 
     this._canvasHandler.ctx.fillStyle = this.style.fillColor;
     this._canvasHandler.ctx.strokeStyle = this.style.strokeColor;
-    this._canvasHandler.ctx.lineWidth = canvasRatio;
+    this._canvasHandler.ctx.lineWidth = 1;
 
     this._path = new Path2D();
     this._path.arc(x, y, Math.round(size[touchDevice ? 'touch' : 'mouse'] / (2 * canvasRatio)) + 0.5, 0, 2 * Math.PI, false);

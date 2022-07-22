@@ -3,19 +3,30 @@ import CanvasHandler from '@/ts/image-editor/tools/canvas-handler';
 import { EditorMode } from '../definitions';
 import { TrackEventsVault } from '../helpers/events/definitions';
 import { LayoutDefinitions } from '../helpers/layout';
-import { Area } from '../helpers/layout/definitions';
+import { Area, CardinalArea } from '../helpers/layout/definitions';
 import ImageManipulator from './image-manipulator/image-manipulator';
+import { Store } from '../store';
+
+type ConfigParams = {
+  canvas: HTMLCanvasElement;
+  mode: EditorMode;
+  restrictedOutput?: LayoutDefinitions.Size;
+  store: Store;
+  wrapper: HTMLDivElement;
+};
 
 export default class {
   private readonly _mode: EditorMode;
   private readonly _canvasHandler: CanvasHandler;
   private _cropperHandler: CropCornerHandler | null = null;
   private readonly _mouseEvents: TrackEventsVault;
+  private readonly _store: Store;
 
-  constructor(config: { canvas: HTMLCanvasElement; mode: EditorMode; restrictedOutput?: LayoutDefinitions.Size; wrapper: HTMLDivElement }) {
-    const { canvas, mode, restrictedOutput, wrapper } = config;
-    this._canvasHandler = new CanvasHandler({ canvas, restrictedOutput, wrapper });
+  constructor(config: ConfigParams) {
+    const { canvas, mode, restrictedOutput, store, wrapper } = config;
+    this._canvasHandler = new CanvasHandler({ canvas, restrictedOutput, store, wrapper });
     this._mode = mode;
+    this._store = store;
 
     if (this._isModeSelected(EditorMode.CROP)) {
       this._cropperHandler = new CropCornerHandler(this._canvasHandler);
@@ -52,6 +63,10 @@ export default class {
     const area = this._canvasHandler.snapshot.edition.cut;
 
     return area ?? null;
+  }
+
+  public setCropArea(value: CardinalArea) {
+    this._cropperHandler?.updateSizeFromInterface(value);
   }
 
   public setOutputSize(size: LayoutDefinitions.Size | null): void {

@@ -3,6 +3,7 @@ import { ImageEditorMouseEvents } from '../../definitions';
 import { LayoutDefinitions, LayoutUtils } from '../../helpers/layout';
 import { EventDefinitions, EventUtils } from '../../helpers/events';
 import { EditionParams, EditorSnapShot } from '../../helpers/layout/definitions';
+import { Store } from '../../store';
 
 /**
  * Handles `ImageEditor`'s canvas and its sizes control.
@@ -10,13 +11,15 @@ import { EditionParams, EditorSnapShot } from '../../helpers/layout/definitions'
 export default class {
   private readonly _canvas: HTMLCanvasElement;
   private readonly _ctx: CanvasRenderingContext2D;
+  private readonly _store: Store;
   private _image: HTMLImageElement | null = null;
   private _wrapper: HTMLDivElement;
   private _editionParams: EditionParams = LayoutUtils.initialize.snapshot.edition();
 
-  constructor(config: { canvas: HTMLCanvasElement; restrictedOutput?: LayoutDefinitions.Size; wrapper: HTMLDivElement }) {
-    const { canvas, restrictedOutput, wrapper } = config;
+  constructor(config: { canvas: HTMLCanvasElement; restrictedOutput?: LayoutDefinitions.Size; store: Store; wrapper: HTMLDivElement }) {
+    const { canvas, restrictedOutput, store, wrapper } = config;
     this._canvas = canvas;
+    this._store = store;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) {
@@ -110,6 +113,8 @@ export default class {
   public setInnerArea(inner: LayoutDefinitions.Area): LayoutDefinitions.Area {
     this._editionParams.cut = inner;
     this.reDraw();
+
+    this._store.setCrop(LayoutUtils.area.toCardinal(inner));
     return inner;
   }
 

@@ -5,12 +5,17 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, onMounted, onUnmounted, PropType, ref, watch } from 'vue';
+import { computed, defineComponent, onMounted, onUnmounted, PropType, ref, watch } from 'vue';
 import ImageEditor, { EditorMode } from '@/ts/image-editor';
 import { LayoutDefinitions } from '@/ts/image-editor/helpers/layout';
+import { CardinalArea } from '@/ts/image-editor/helpers/layout/definitions';
 
 export default defineComponent({
   props: {
+    cropArea: {
+      type: Object as PropType<CardinalArea> | null,
+      default: null
+    },
     lockedOutputSize: {
       type: Object as PropType<LayoutDefinitions.Size>
     },
@@ -19,11 +24,14 @@ export default defineComponent({
       default: EditorMode.ALL
     }
   },
-  setup(props) {
+  setup(props, { emit }) {
     const useVerticalImage = ref(false);
 
     //![0] Variable definition
     const imageEditor = new ImageEditor();
+    const store = imageEditor.store;
+    const cutArea = computed(() => imageEditor.store.crop);
+
     const canvasRef = ref<HTMLCanvasElement>();
     const canvasWrapperRef = ref<HTMLDivElement>();
     //![1] Variable definition
@@ -43,10 +51,17 @@ export default defineComponent({
     const toggleVerticalImage = () => {
       useVerticalImage.value = !useVerticalImage.value;
     };
+
+    const updateCropArea = (value: CardinalArea) => {
+      imageEditor.setCropAreaPosition(value);
+    };
     //![1] Methods definition
 
     //![0] Watchers definition
     watch(useVerticalImage, () => loadImage());
+    watch(cutArea, (newValue) => {
+      emit('update:cropArea', newValue);
+    });
     //![1] Watchers definition
 
     onMounted(async () => {
@@ -82,7 +97,9 @@ export default defineComponent({
       applyChanges,
       canvasRef,
       canvasWrapperRef,
+      store,
       toggleVerticalImage,
+      updateCropArea,
       useVerticalImage
     };
   }

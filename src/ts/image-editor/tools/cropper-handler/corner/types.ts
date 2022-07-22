@@ -1,9 +1,9 @@
 //#region CONSTANTS
 export const DEFAULT_STYLE: CornerStyling = {
   fillColor: 'rgb(255, 255, 255)',
-  hasBorder: false,
+  hasBorder: true,
   isTransparent: false,
-  strokeColor: 'rgba(0, 0, 0, 0.75)',
+  strokeColor: 'rgba(0, 0, 0, 0.8)',
   size: {
     mouse: 8,
     touch: 20

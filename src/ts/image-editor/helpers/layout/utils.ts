@@ -1,4 +1,4 @@
-import { Area, CardinalArea, WrapperSize, Position, Ratio, Size, Canvas, EditionParams } from './definitions';
+import { Area, WrapperSize, Position, Ratio, Size, Canvas, EditionParams, CardinalArea } from './definitions';
 
 /**
  * Calcule the canvas sizes depending on the **wrapper** (editor), the **content** (image) and its **orientation**.
@@ -94,4 +94,10 @@ export const sizeFrom = {
     height: input.offsetHeight
   }),
   image: (input: Size): Size => ({ width: input.width, height: input.height })
+};
+
+export const area = {
+  isFullfilled: (area: Area | CardinalArea): boolean => Object.values(area).every((item) => Number.isInteger(item)),
+  fromCardinal: (area: CardinalArea): Area => ({ left: area.x, top: area.y, right: area.x + area.width, bottom: area.y + area.height }),
+  toCardinal: (area: Area): CardinalArea => ({ x: area.left, y: area.top, width: area.right - area.left, height: area.bottom - area.top })
 };

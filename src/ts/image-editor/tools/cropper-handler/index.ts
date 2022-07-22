@@ -7,7 +7,9 @@ import CanvasHandler from '../canvas-handler';
 import { EventDefinitions, EventUtils } from '../../helpers/events';
 import { LayoutDefinitions, LayoutUtils } from '../../helpers/layout';
 import { EditorMode, EditorTool } from '../../definitions';
-// CONTINUAR AQUI
+import { CardinalArea } from '../../helpers/layout/definitions';
+import { area } from '../../helpers/layout/utils';
+
 export default class implements EditorTool {
   public readonly mode = EditorMode.CROP;
   private readonly _corners: CropAreaCorners;
@@ -56,6 +58,40 @@ export default class implements EditorTool {
   //#endregion GETTERS
 
   //#region PUBLIC METHODS
+  public updateSizeFromInterface(value: CardinalArea) {
+    const innerCut = this._canvasHandler.snapshot.edition.cut;
+
+    if (!innerCut) {
+      return;
+    }
+    console.log(innerCut, !area.isFullfilled(value));
+
+    const { width: maxWidth, height: maxHeight } = this._canvasHandler.snapshot.image;
+    let { left, top, right, bottom } = LayoutUtils.area.fromCardinal(value);
+
+    const horizontalDelta = innerCut.left - left || innerCut.right - right;
+    const verticalDelta = innerCut.top - top || innerCut.bottom - bottom;
+
+    if (horizontalDelta) {
+      top = Math.max(0, top);
+      bottom = Math.min(maxHeight, bottom);
+      left = Math.min(Math.max(0, left), Math.max(1, maxWidth - value.width));
+      right = Math.max(Math.min(maxWidth, right), left);
+    } else if (verticalDelta) {
+      left = Math.max(0, left);
+      right = Math.min(maxWidth, right);
+      top = Math.min(Math.max(0, top), Math.max(0, maxHeight - value.height));
+      bottom = Math.max(Math.min(maxHeight, bottom), top);
+    }
+
+    this._setPositions({
+      bottom,
+      left,
+      right,
+      top
+    });
+  }
+
   /**
    * Reset all `corners` positions.
    */
