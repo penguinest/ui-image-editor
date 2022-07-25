@@ -8,7 +8,7 @@
 import { computed, defineComponent, onMounted, onUnmounted, PropType, ref, watch } from 'vue';
 import ImageEditor, { EditorMode } from '@/ts/image-editor';
 import { LayoutDefinitions } from '@/ts/image-editor/helpers/layout';
-import { CardinalArea } from '@/ts/image-editor/helpers/layout/definitions';
+import { CardinalArea, Size } from '@/ts/image-editor/helpers/layout/definitions';
 
 export default defineComponent({
   props: {
@@ -31,6 +31,7 @@ export default defineComponent({
     const imageEditor = new ImageEditor();
     const store = imageEditor.store;
     const cutArea = computed(() => imageEditor.store.crop);
+    const outputSize = computed(() => imageEditor.store.outputSize);
 
     const canvasRef = ref<HTMLCanvasElement>();
     const canvasWrapperRef = ref<HTMLDivElement>();
@@ -55,12 +56,19 @@ export default defineComponent({
     const updateCropArea = (value: CardinalArea) => {
       imageEditor.setCropAreaPosition(value);
     };
+
+    const updateLockedOutputSize = (value: Size) => {
+      imageEditor.setOutputSize(value);
+    };
     //![1] Methods definition
 
     //![0] Watchers definition
     watch(useVerticalImage, () => loadImage());
     watch(cutArea, (newValue) => {
       emit('update:cropArea', newValue);
+    });
+    watch(outputSize, (newValue) => {
+      emit('update:outputSize', newValue);
     });
     //![1] Watchers definition
 
@@ -100,6 +108,7 @@ export default defineComponent({
       store,
       toggleVerticalImage,
       updateCropArea,
+      updateLockedOutputSize,
       useVerticalImage
     };
   }

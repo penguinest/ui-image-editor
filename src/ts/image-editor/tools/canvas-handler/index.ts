@@ -4,6 +4,7 @@ import { LayoutDefinitions, LayoutUtils } from '../../helpers/layout';
 import { EventDefinitions, EventUtils } from '../../helpers/events';
 import { EditionParams, EditorSnapShot } from '../../helpers/layout/definitions';
 import { Store } from '../../store';
+import { DEFAULT_MIN_SIZE } from '../cropper-handler/definitions';
 
 /**
  * Handles `ImageEditor`'s canvas and its sizes control.
@@ -133,9 +134,16 @@ export default class {
 
   public updateRestrictedOutputSize(size: LayoutDefinitions.Size | null) {
     if (size) {
+      const width = Math.min(Math.max(DEFAULT_MIN_SIZE, size.width), this._image?.width || Number.MAX_VALUE);
+      const height = Math.min(Math.max(DEFAULT_MIN_SIZE, size.height), this._image?.height || Number.MAX_VALUE);
+      this._store.setOutput({ width, height });
+
       this._editionParams.restrictions = {
         ...this._editionParams.restrictions,
-        lockedOutputSize: size
+        lockedOutputSize: {
+          width,
+          height
+        }
       };
     } else {
       delete this._editionParams.restrictions!.lockedOutputSize;

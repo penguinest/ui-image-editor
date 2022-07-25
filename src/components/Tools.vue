@@ -32,11 +32,11 @@
       <div class="input-size-item">
         <div>
           <p class="input-item"><strong>w:</strong></p>
-          <input id="restrict-size-w" autocomplete="nope" />
+          <input id="restrict-size-w" autocomplete="nope" :value="outputSize?.width" @change="updateOutputSize('width', $event)" />
         </div>
         <div>
           <p class="input-item"><strong>h:</strong></p>
-          <input id="restrict-size-h" autocomplete="nope" />
+          <input id="restrict-size-h" autocomplete="nope" :value="outputSize?.height" @change="updateOutputSize('height', $event)" />
         </div>
       </div>
     </div>
@@ -45,29 +45,58 @@
 </template>
 
 <script lang="ts">
-import { CardinalArea } from '@/ts/image-editor/helpers/layout/definitions';
-import { defineComponent, PropType } from 'vue';
+import { LayoutUtils } from '@/ts/image-editor/helpers/layout';
+import { CardinalArea, Size } from '@/ts/image-editor/helpers/layout/definitions';
+import { defineComponent, PropType, reactive, watch } from 'vue';
 
 export default defineComponent({
   props: {
     cropArea: {
       type: Object as PropType<CardinalArea> | null,
       default: null
+    },
+    outputSize: {
+      type: Object as PropType<Size> | null,
+      default: null
     }
   },
   setup(props, { emit }) {
     const validateInputAreaUnit = (unit: number) => unit >= 0;
+    const outputSize = reactive<Size>(LayoutUtils.initialize.units.size());
 
     const updateUnit = (unit: keyof CardinalArea, event: Event) => {
-      const value = (event.target as HTMLInputElement).value;
-      const intValue = +value;
-      if (props.cropArea && !Number.isNaN(intValue) && validateInputAreaUnit(intValue)) {
-        emit('update-cropArea', { ...props.cropArea, [unit]: intValue });
+      const value = +(event.target as HTMLInputElement).value;
+      if (props.cropArea && !Number.isNaN(value) && validateInputAreaUnit(value)) {
+        emit('update-cropArea', { ...props.cropArea, [unit]: value });
       }
     };
 
+    const updateOutputSize = (unit: keyof Size, event: Event) => {
+      const value = +(event.target as HTMLInputElement).value;
+      if (!Number.isNaN(value) && validateInputAreaUnit(value)) {
+        outputSize[unit] = value;
+        const update = outputSize.height && outputSize.width ? outputSize : null;
+
+        if (update !== props.outputSize) {
+          emit('update-outputSize', update);
+        }
+      }
+    };
+
+    watch(
+      () => props.outputSize,
+      () => {
+        const { height, width } = props.outputSize;
+        if (!!height && !!width) {
+          outputSize.height = height;
+          outputSize.width = width;
+        }
+      }
+    );
+
     return {
-      updateUnit
+      updateUnit,
+      updateOutputSize
     };
   }
 });

@@ -64,7 +64,6 @@ export default class implements EditorTool {
     if (!innerCut) {
       return;
     }
-    console.log(innerCut, !area.isFullfilled(value));
 
     const { width: maxWidth, height: maxHeight } = this._canvasHandler.snapshot.image;
     let { left, top, right, bottom } = LayoutUtils.area.fromCardinal(value);

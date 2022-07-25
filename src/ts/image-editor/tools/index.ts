@@ -20,13 +20,11 @@ export default class {
   private readonly _canvasHandler: CanvasHandler;
   private _cropperHandler: CropCornerHandler | null = null;
   private readonly _mouseEvents: TrackEventsVault;
-  private readonly _store: Store;
 
   constructor(config: ConfigParams) {
     const { canvas, mode, restrictedOutput, store, wrapper } = config;
     this._canvasHandler = new CanvasHandler({ canvas, restrictedOutput, store, wrapper });
     this._mode = mode;
-    this._store = store;
 
     if (this._isModeSelected(EditorMode.CROP)) {
       this._cropperHandler = new CropCornerHandler(this._canvasHandler);
