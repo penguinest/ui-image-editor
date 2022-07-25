@@ -8,7 +8,6 @@ import { EventDefinitions, EventUtils } from '../../helpers/events';
 import { LayoutDefinitions, LayoutUtils } from '../../helpers/layout';
 import { EditorMode, EditorTool } from '../../definitions';
 import { CardinalArea } from '../../helpers/layout/definitions';
-import { area } from '../../helpers/layout/utils';
 
 export default class implements EditorTool {
   public readonly mode = EditorMode.CROP;

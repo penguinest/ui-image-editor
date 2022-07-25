@@ -134,19 +134,46 @@ export default class {
 
   public updateRestrictedOutputSize(size: LayoutDefinitions.Size | null) {
     if (size) {
-      const width = Math.min(Math.max(DEFAULT_MIN_SIZE, size.width), this._image?.width || Number.MAX_VALUE);
-      const height = Math.min(Math.max(DEFAULT_MIN_SIZE, size.height), this._image?.height || Number.MAX_VALUE);
-      this._store.setOutput({ width, height });
+      const restrictedWidth = Math.min(Math.max(DEFAULT_MIN_SIZE, size.width), this._image?.width || Number.MAX_VALUE);
+      const restrictedHeight = Math.min(Math.max(DEFAULT_MIN_SIZE, size.height), this._image?.height || Number.MAX_VALUE);
+      this._store.setOutput({ width: restrictedWidth, height: restrictedHeight });
+
+      if (this._editionParams.cut) {
+        const wRatio = restrictedWidth / restrictedHeight;
+        const area = LayoutUtils.area.toCardinal(this._editionParams.cut);
+        const optionOne = {
+          width: Math.max(area.width, restrictedWidth),
+          height: Math.max(area.width, restrictedWidth) / wRatio
+        };
+        const optionTwo = {
+          height: Math.max(area.height, restrictedHeight),
+          width: Math.max(area.height, restrictedHeight) * wRatio
+        };
+        const result = optionOne.height <= this._image!.height && optionOne.width <= this._image!.width ? optionOne : optionTwo;
+        const p = {
+          x: Math.min(area.x, this._image!.width - result.width),
+          y: Math.min(area.y, this._image!.height - result.height)
+        };
+        const t = {
+          ...p,
+          ...result
+        };
+
+        console.log({ image: { width: this._image?.width, height: this._image?.height }, optionOne, optionTwo });
+
+        this.setInnerArea(LayoutUtils.area.fromCardinal(t));
+      }
 
       this._editionParams.restrictions = {
         ...this._editionParams.restrictions,
         lockedOutputSize: {
-          width,
-          height
+          width: restrictedWidth,
+          height: restrictedHeight
         }
       };
     } else {
       delete this._editionParams.restrictions!.lockedOutputSize;
+      this._store.setOutput(null);
     }
   }
 

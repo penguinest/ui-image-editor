@@ -5,7 +5,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, onUnmounted, PropType, ref, watch } from 'vue';
+import { defineComponent, onMounted, onUnmounted, PropType, ref, watch } from 'vue';
 import ImageEditor, { EditorMode } from '@/ts/image-editor';
 import { LayoutDefinitions } from '@/ts/image-editor/helpers/layout';
 import { CardinalArea, Size } from '@/ts/image-editor/helpers/layout/definitions';
@@ -24,14 +24,12 @@ export default defineComponent({
       default: EditorMode.ALL
     }
   },
-  setup(props, { emit }) {
+  setup(props) {
     const useVerticalImage = ref(false);
 
     //![0] Variable definition
     const imageEditor = new ImageEditor();
     const store = imageEditor.store;
-    const cutArea = computed(() => imageEditor.store.crop);
-    const outputSize = computed(() => imageEditor.store.outputSize);
 
     const canvasRef = ref<HTMLCanvasElement>();
     const canvasWrapperRef = ref<HTMLDivElement>();
@@ -64,12 +62,6 @@ export default defineComponent({
 
     //![0] Watchers definition
     watch(useVerticalImage, () => loadImage());
-    watch(cutArea, (newValue) => {
-      emit('update:cropArea', newValue);
-    });
-    watch(outputSize, (newValue) => {
-      emit('update:outputSize', newValue);
-    });
     //![1] Watchers definition
 
     onMounted(async () => {

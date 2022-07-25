@@ -1,22 +1,14 @@
 import { reactive, readonly } from 'vue';
 import { CardinalArea, Size } from './helpers/layout/definitions';
 
-type State = {
-  crop: CardinalArea;
-  outputSize: Size;
+export type State = {
+  crop: CardinalArea | null;
+  outputSize: Size | null;
 };
 
 const defaultState: State = {
-  crop: {
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0
-  },
-  outputSize: {
-    width: 0,
-    height: 0
-  }
+  crop: null,
+  outputSize: null
 };
 
 export class Store {
@@ -34,7 +26,7 @@ export class Store {
     this._state.crop = value;
   }
 
-  public setOutput(value: Size) {
+  public setOutput(value: Size | null) {
     this._state.outputSize = value;
   }
 }
