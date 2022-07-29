@@ -29,7 +29,7 @@ export default defineComponent({
 
     //![0] Variable definition
     const imageEditor = new ImageEditor();
-    const store = imageEditor.store;
+    const state = imageEditor.state;
 
     const canvasRef = ref<HTMLCanvasElement>();
     const canvasWrapperRef = ref<HTMLDivElement>();
@@ -97,7 +97,7 @@ export default defineComponent({
       applyChanges,
       canvasRef,
       canvasWrapperRef,
-      store,
+      state,
       toggleVerticalImage,
       updateCropArea,
       updateLockedOutputSize,

@@ -20,11 +20,13 @@ export default class {
   private readonly _canvasHandler: CanvasHandler;
   private _cropperHandler: CropCornerHandler | null = null;
   private readonly _mouseEvents: TrackEventsVault;
+  private readonly _store: Store;
 
   constructor(config: ConfigParams) {
     const { canvas, mode, restrictedOutput, store, wrapper } = config;
     this._canvasHandler = new CanvasHandler({ canvas, restrictedOutput, store, wrapper });
     this._mode = mode;
+    this._store = store;
 
     if (this._isModeSelected(EditorMode.CROP)) {
       this._cropperHandler = new CropCornerHandler(this._canvasHandler);
@@ -34,20 +36,29 @@ export default class {
     this._mouseEvents = this._createMouseEvents();
   }
 
-  public apply(): string {
-    const { ctx } = this._canvasHandler;
-    const imageManipulator = ImageManipulator(ctx);
+  public async apply(): Promise<string> {
+    const { src } = this._canvasHandler;
+
+    if (!src) {
+      throw new Error('Image is not set');
+    }
+
+    let imageManipulator = await ImageManipulator(src);
 
     if (this._isModeSelected(EditorMode.CROP)) {
       const cutArea = this.cutArea();
       if (cutArea) {
-        return imageManipulator.crop(cutArea).url('jpg');
+        imageManipulator = imageManipulator.crop(cutArea);
       }
     }
+
     if (this._isModeSelected(EditorMode.SCALE)) {
-      // TODO: IMPLEMENT ME
+      const outputSize = this._canvasHandler.snapshot.edition.restrictions.lockedOutputSize;
+      if (outputSize) {
+        imageManipulator = await imageManipulator.scale(outputSize);
+      }
     }
-    return imageManipulator.url('jpg');
+    return imageManipulator.url('jpeg');
   }
 
   public configureEventListenersState(onInitialize: boolean) {
@@ -68,7 +79,12 @@ export default class {
   }
 
   public setOutputSize(size: LayoutDefinitions.Size | null): void {
-    this._canvasHandler.updateRestrictedOutputSize(size);
+    const result = this._canvasHandler.updateRestrictedOutputSize(size);
+
+    // ! REFACTOR THIS
+    if (result) {
+      this.setCropArea(result);
+    }
   }
 
   public setSizes(): void {
@@ -85,6 +101,7 @@ export default class {
 
     this._canvasHandler.reset();
     this._cropperHandler?.reset();
+    this._store.reset();
 
     this.setSizes();
   }

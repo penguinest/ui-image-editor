@@ -29,10 +29,6 @@ class ImageEditor {
     });
   }
 
-  get store() {
-    return this._store.state;
-  }
-
   //#region PUBLIC METHODS
   public destroy(): void {
     this._configureEventListenersState({
@@ -44,11 +40,16 @@ class ImageEditor {
     if (!this._image) {
       return false;
     }
+
     const cutArea = this._tools.cutArea();
+
     if (!cutArea) {
       return false;
     }
-    const url = this._tools.apply();
+
+    const url = await this._tools.apply();
+
+    console.log(url);
 
     // Make something useful with the result.
     // I.e stored result on server side or
@@ -131,7 +132,7 @@ export default class {
   private _handler: ImageEditor | null = null;
   private readonly _store = new Store();
 
-  get store() {
+  get state() {
     return this._store.state;
   }
 
@@ -180,7 +181,7 @@ export default class {
       return false;
     }
 
-    return this._handler.setImageSource(source);
+    return await this._handler.setImageSource(source);
   }
 
   public setOutputSize(size: LayoutDefinitions.Size | null): void {

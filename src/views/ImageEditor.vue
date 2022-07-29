@@ -26,15 +26,15 @@ export default defineComponent({
   },
   setup() {
     const imageCanvasRef = ref<InstanceType<typeof ImageCanvas>>();
-    const store = ref<State | null>(null);
-    const cropArea = computed(() => store.value?.crop ?? undefined);
-    const outputSize = computed(() => store.value?.outputSize ?? undefined);
+    const state = ref<State | null>(null);
+    const cropArea = computed(() => state.value?.crop ?? undefined);
+    const outputSize = computed(() => state.value?.outputSize ?? undefined);
 
     const updateCropArea = (value: CardinalArea) => imageCanvasRef.value?.updateCropArea(value);
     const updateOutputSize = (value: Size) => imageCanvasRef.value?.updateLockedOutputSize(value);
 
     onMounted(() => {
-      store.value = imageCanvasRef.value!.store;
+      state.value = imageCanvasRef.value!.state;
     });
 
     return {

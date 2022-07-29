@@ -47,6 +47,10 @@ export default class {
     return this._ctx;
   }
 
+  get src(): string | null {
+    return this._image?.src || null;
+  }
+
   get snapshot(): EditorSnapShot {
     return {
       canvas: {
@@ -132,11 +136,21 @@ export default class {
     return false;
   }
 
-  public updateRestrictedOutputSize(size: LayoutDefinitions.Size | null) {
+  public updateRestrictedOutputSize(size: LayoutDefinitions.Size | null): LayoutDefinitions.CardinalArea | null {
     if (size) {
       const restrictedWidth = Math.min(Math.max(DEFAULT_MIN_SIZE, size.width), this._image?.width || Number.MAX_VALUE);
       const restrictedHeight = Math.min(Math.max(DEFAULT_MIN_SIZE, size.height), this._image?.height || Number.MAX_VALUE);
-      this._store.setOutput({ width: restrictedWidth, height: restrictedHeight });
+      const lockedOutputSize = {
+        width: restrictedWidth,
+        height: restrictedHeight
+      };
+
+      this._store.setOutput(lockedOutputSize);
+
+      this._editionParams.restrictions = {
+        ...this._editionParams.restrictions,
+        lockedOutputSize
+      };
 
       if (this._editionParams.cut) {
         const wRatio = restrictedWidth / restrictedHeight;
@@ -159,22 +173,16 @@ export default class {
           ...result
         };
 
-        console.log({ image: { width: this._image?.width, height: this._image?.height }, optionOne, optionTwo });
-
-        this.setInnerArea(LayoutUtils.area.fromCardinal(t));
+        return t;
       }
 
-      this._editionParams.restrictions = {
-        ...this._editionParams.restrictions,
-        lockedOutputSize: {
-          width: restrictedWidth,
-          height: restrictedHeight
-        }
-      };
+      return null;
     } else {
       delete this._editionParams.restrictions!.lockedOutputSize;
       this._store.setOutput(null);
     }
+
+    return null;
   }
 
   /**

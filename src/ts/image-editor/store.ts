@@ -15,11 +15,18 @@ export class Store {
   protected readonly _state: State;
 
   constructor() {
-    this._state = reactive(defaultState);
+    this._state = reactive({ ...defaultState });
   }
 
   get state(): State {
     return readonly(this._state);
+  }
+
+  public reset() {
+    const { crop, outputSize } = defaultState;
+
+    this._state.crop = crop;
+    this._state.outputSize = outputSize;
   }
 
   public setCrop(value: CardinalArea) {
