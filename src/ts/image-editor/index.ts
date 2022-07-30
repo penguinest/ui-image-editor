@@ -49,12 +49,14 @@ class ImageEditor {
 
     const url = await this._tools.apply();
 
-    console.log(url);
-
+    if (url) {
+      this._saveFile(url);
+      return true;
+    }
     // Make something useful with the result.
     // I.e stored result on server side or
     // implement a image preview for user validation
-    return !!url;
+    return false;
   }
 
   public setCropArea(value: CardinalArea) {
@@ -115,11 +117,21 @@ class ImageEditor {
    * Windows `onresize` event handler.
    * @see _configureEventListenersState
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private _onResize(_event: UIEvent): void {
     if (this._image) {
       this._tools.setSizes();
     }
+  }
+  private _saveFile(buffer: string) {
+    const downloadAnchorElement = document.createElement('a');
+    //downloadAnchorElement.id = 'download_file_anchor';
+    document.body.appendChild(downloadAnchorElement);
+
+    downloadAnchorElement.href = buffer;
+    downloadAnchorElement.target = '_self';
+    downloadAnchorElement.download = 'edited_file';
+    downloadAnchorElement.click();
+    document.body.removeChild(downloadAnchorElement);
   }
   //#endregion PRIVATE METHODS
 }
