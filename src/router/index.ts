@@ -3,13 +3,8 @@ import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
-    name: 'Home',
-    component: () => import(/* webpackChunkName: "image" */ '../views/Home.vue')
-  },
-  {
-    path: '/editor',
     name: 'Editor',
-    component: () => import(/* webpackChunkName: "image" */ '../views/ImageEditor.vue')
+    component: () => import(/* webpackChunkName: "imageeditor" */ '../views/ImageEditor.vue')
   }
 ];
 

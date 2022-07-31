@@ -27,6 +27,7 @@ export default defineComponent({
   setup() {
     const imageCanvasRef = ref<InstanceType<typeof ImageCanvas>>();
     const state = ref<State | null>(null);
+
     const cropArea = computed(() => state.value?.crop ?? undefined);
     const outputSize = computed(() => state.value?.outputSize ?? undefined);
 
