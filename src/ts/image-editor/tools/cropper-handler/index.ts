@@ -128,6 +128,39 @@ export default class implements EditorTool {
     }
     return BoundaryIdentity.OUTER;
   }
+  private _calculeAreaByLockedOutput(area: LayoutDefinitions.Area, deltas: LayoutDefinitions.Position): LayoutDefinitions.Area {
+    if (this._canvasHandler.snapshot.edition.restrictions.lockedOutputSize) {
+      const image = this._canvasHandler.snapshot.image;
+      const { width: lockedW, height: lockedH } = this._canvasHandler.snapshot.edition.restrictions.lockedOutputSize;
+      if (deltas.x !== 0) {
+        const expectedW = Math.min(area.right - area.left, image.width);
+        if (deltas.y > 0) area.bottom = area.top + (lockedH / lockedW) * expectedW;
+        else area.top = area.bottom - (lockedH / lockedW) * expectedW;
+      }
+      if (deltas.y !== 0) {
+        const expectedH = Math.min(area.bottom - area.top, image.height);
+        if (deltas.x > 0) {
+          area.right = area.left + (lockedW / lockedH) * expectedH;
+        } else {
+          area.left = area.right - (lockedW / lockedH) * expectedH;
+        }
+      }
+
+      /*const cardinal = LayoutUtils.area.toCardinal(area);
+      // CONTINUAR AQUÍ: EVITAR QUE AL TENER LOCKEDOUTPUT SE GENERE UN CORTE MAYOR QUE EL AREA DISPONIBLE
+      if (
+        image.width <
+        cardinal.x + cardinal.width
+      ) {
+        if (deltas.x > 0) {
+          area.right = image.width - area.left;
+        } else {
+          area.left = ;
+        }
+      }*/
+    }
+    return area;
+  }
   /**
    * Transform windows mouse/touch position into loaded image.
    * Note: Image can be larger than actual screen.
@@ -216,7 +249,7 @@ export default class implements EditorTool {
       area.top = position.y - DEFAULT_MIN_SIZE;
     }
 
-    return area;
+    return this._calculeAreaByLockedOutput(area, deltas);
   }
 
   /**
@@ -230,6 +263,7 @@ export default class implements EditorTool {
     }
 
     let { bottom, left, right, top } = cropArea;
+    const deltas = { x: 0, y: 0 };
 
     //#region calcule horizontal position
     switch (cornerIdentity) {
@@ -239,6 +273,7 @@ export default class implements EditorTool {
         {
           const gap = Math.max(right - position.x, DEFAULT_MIN_SIZE);
           left = right - gap;
+          deltas.x = -gap;
         }
         break;
       case CornerIdentity.RB:
@@ -247,6 +282,7 @@ export default class implements EditorTool {
         {
           const gap = Math.max(position.x - left, DEFAULT_MIN_SIZE);
           right = left + gap;
+          deltas.x = gap;
         }
         break;
     }
@@ -260,6 +296,7 @@ export default class implements EditorTool {
         {
           const gap = Math.max(bottom - position.y, DEFAULT_MIN_SIZE);
           top = bottom - gap;
+          deltas.y = -gap;
         }
         break;
       case CornerIdentity.RB:
@@ -268,17 +305,27 @@ export default class implements EditorTool {
         {
           const gap = Math.max(position.y - top, DEFAULT_MIN_SIZE);
           bottom = top + gap;
+          deltas.y = gap;
         }
         break;
       //#endregion calcule vertical position
     }
 
-    this._setPositions({
-      bottom,
-      left,
-      right,
-      top
-    });
+    const area = this._calculeAreaByLockedOutput(
+      {
+        bottom,
+        left,
+        right,
+        top
+      },
+      deltas
+    );
+
+    if (!LayoutUtils.area.isValid(area, this._canvasHandler.snapshot.image)) {
+      return;
+    }
+
+    this._setPositions(area);
   }
 
   /**
