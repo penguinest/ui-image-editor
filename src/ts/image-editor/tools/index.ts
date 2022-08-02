@@ -2,7 +2,7 @@ import CropCornerHandler from '@/ts/image-editor/tools/cropper-handler';
 import CanvasHandler from '@/ts/image-editor/tools/canvas-handler';
 import { EditorMode } from '../definitions';
 import { TrackEventsVault } from '../helpers/events/definitions';
-import { LayoutDefinitions } from '../helpers/layout';
+import { LayoutDefinitions, LayoutUtils } from '../helpers/layout';
 import { Area, CardinalArea } from '../helpers/layout/definitions';
 import ImageManipulator from './image-manipulator/image-manipulator';
 import { Store } from '../store';

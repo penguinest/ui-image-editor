@@ -8,16 +8,21 @@
 import { defineComponent, onMounted, onUnmounted, PropType, ref, watch } from 'vue';
 import ImageEditor, { EditorMode } from '@/ts/image-editor';
 import { LayoutDefinitions } from '@/ts/image-editor/helpers/layout';
-import { CardinalArea, Size } from '@/ts/image-editor/helpers/layout/definitions';
+import { CardinalArea } from '@/ts/image-editor/helpers/layout/definitions';
 
 export default defineComponent({
   props: {
     cropArea: {
-      type: Object as PropType<CardinalArea> | null,
+      type: Object as PropType<CardinalArea | null>,
       default: null
     },
+    imageEditor: {
+      type: Object as PropType<ImageEditor>,
+      required: true
+    },
     lockedOutputSize: {
-      type: Object as PropType<LayoutDefinitions.Size>
+      type: Object as PropType<LayoutDefinitions.Size | null>,
+      default: null
     },
     mode: {
       type: Number as PropType<EditorMode>,
@@ -28,35 +33,26 @@ export default defineComponent({
     const useVerticalImage = ref(false);
 
     //![0] Variable definition
-    const imageEditor = new ImageEditor();
-    const state = imageEditor.state;
-
     const canvasRef = ref<HTMLCanvasElement>();
     const canvasWrapperRef = ref<HTMLDivElement>();
     //![1] Variable definition
 
     //![0] Methods definition
     const applyChanges = async () => {
-      const result = await imageEditor.apply();
+      const result = await props.imageEditor.apply();
       console.log(`ImageEditor result: ${result}`);
     };
+
     const loadImage = async () => {
-      await imageEditor.setImageSource(
+      await props.imageEditor.setImageSource(
         useVerticalImage.value
           ? 'https://images.unsplash.com/photo-1501183007986-d0d080b147f9?auto=format&fit=crop&w=1500'
           : 'https://images.unsplash.com/photo-1538991383142-36c4edeaffde?auto=format&fit=crop&w=1500'
       );
     };
+
     const toggleVerticalImage = () => {
       useVerticalImage.value = !useVerticalImage.value;
-    };
-
-    const updateCropArea = (value: CardinalArea) => {
-      imageEditor.setCropAreaPosition(value);
-    };
-
-    const updateLockedOutputSize = (value: Size) => {
-      imageEditor.setOutputSize(value);
     };
     //![1] Methods definition
 
@@ -73,7 +69,7 @@ export default defineComponent({
         const wrapper = canvasWrapperRef.value!;
 
         if (
-          imageEditor.initialize({
+          props.imageEditor.initialize({
             canvas,
             wrapper,
             lockedOutputSize: props.lockedOutputSize,
@@ -90,17 +86,14 @@ export default defineComponent({
     onUnmounted(() => {
       // Avoid bouncing on touch devices.
       document.body.style.overflow = 'auto';
-      imageEditor.destroy();
+      props.imageEditor.destroy();
     });
 
     return {
       applyChanges,
       canvasRef,
       canvasWrapperRef,
-      state,
       toggleVerticalImage,
-      updateCropArea,
-      updateLockedOutputSize,
       useVerticalImage
     };
   }
@@ -116,10 +109,6 @@ export default defineComponent({
   border: 2px solid rgb(187, 255, 0);
   border-radius: 2px;
   background-color: rgb(187, 187, 187);
-  //image-rendering: -moz-crisp-edges;
-  //image-rendering: -webkit-crisp-edges;
-  //image-rendering: pixelated;
-  //image-rendering: crisp-edges;
   overflow: auto;
   box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
   canvas {

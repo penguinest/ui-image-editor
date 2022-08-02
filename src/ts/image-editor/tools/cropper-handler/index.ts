@@ -82,12 +82,22 @@ export default class implements EditorTool {
       bottom = Math.max(Math.min(maxHeight, bottom), top);
     }
 
-    this._setPositions({
-      bottom,
-      left,
-      right,
-      top
-    });
+    const sanitizedPosition = LayoutUtils.area.toWholeNumber(
+      this._calculeAreaByLockedOutput(
+        {
+          bottom,
+          left,
+          right,
+          top
+        },
+        {
+          x: horizontalDelta,
+          y: verticalDelta
+        }
+      )
+    );
+
+    this._setPositions(sanitizedPosition);
   }
 
   /**

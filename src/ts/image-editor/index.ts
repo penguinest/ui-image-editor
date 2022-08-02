@@ -19,7 +19,7 @@ class ImageEditor {
     this._tools = new Tools({
       canvas,
       mode,
-      restrictedOutput: lockedOutputSize,
+      restrictedOutput: lockedOutputSize ?? undefined,
       store: this._store,
       wrapper
     });

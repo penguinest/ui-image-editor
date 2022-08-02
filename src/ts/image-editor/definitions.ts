@@ -29,7 +29,7 @@ export type ConstructorParameters = {
   canvas: HTMLCanvasElement;
   wrapper: HTMLDivElement;
   mode: EditorMode;
-  lockedOutputSize?: LayoutDefinitions.Size;
+  lockedOutputSize: LayoutDefinitions.Size | null;
   store: Store;
 };
 

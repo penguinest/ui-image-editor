@@ -52,18 +52,22 @@ import { defineComponent, PropType, reactive, watch } from 'vue';
 export default defineComponent({
   props: {
     cropArea: {
-      type: Object as PropType<CardinalArea> | null,
+      type: Object as PropType<CardinalArea | null>,
       default: null
     },
     outputSize: {
-      type: Object as PropType<Size> | null,
+      type: Object as PropType<Size | null>,
       default: null
     }
   },
   setup(props, { emit }) {
+    //![0] Variable definition
     const validateInputAreaUnit = (unit: number) => unit >= 0;
-    const outputSize = reactive<Size>(LayoutUtils.initialize.units.size());
 
+    const outputSize = reactive<Size>(LayoutUtils.initialize.units.size());
+    //![1] Variable definition
+
+    //![0] Methods definition
     const updateUnit = (unit: keyof CardinalArea, event: Event) => {
       const value = +(event.target as HTMLInputElement).value;
       if (props.cropArea && !Number.isNaN(value) && validateInputAreaUnit(value)) {
@@ -82,17 +86,20 @@ export default defineComponent({
         }
       }
     };
+    //![1] Methods definition
 
+    //![0] Watchers definition
     watch(
       () => props.outputSize,
       () => {
-        const { height, width } = props.outputSize;
+        const { height, width } = props.outputSize ?? {};
         if (!!height && !!width) {
           outputSize.height = height;
           outputSize.width = width;
         }
       }
     );
+    //![1] Watchers definition
 
     return {
       updateUnit,

@@ -101,5 +101,11 @@ export const area = {
   isValid: (area: Area, maxSize: Size): boolean =>
     area.top >= 0 && area.left >= 0 && area.right <= maxSize.width && area.bottom <= maxSize.height,
   fromCardinal: (area: CardinalArea): Area => ({ left: area.x, top: area.y, right: area.x + area.width, bottom: area.y + area.height }),
-  toCardinal: (area: Area): CardinalArea => ({ x: area.left, y: area.top, width: area.right - area.left, height: area.bottom - area.top })
+  toCardinal: (area: Area): CardinalArea => ({ x: area.left, y: area.top, width: area.right - area.left, height: area.bottom - area.top }),
+  toWholeNumber: <T extends Area | CardinalArea>(area: T): T => {
+    return Object.keys(area).reduce<Record<string, number>>((acc, key) => {
+      acc[key] = Math.round(+area[key as keyof typeof area]);
+      return acc;
+    }, {}) as T;
+  }
 };

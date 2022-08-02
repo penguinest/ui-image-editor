@@ -116,11 +116,12 @@ export default class {
   }
 
   public setInnerArea(inner: LayoutDefinitions.Area): LayoutDefinitions.Area {
-    this._editionParams.cut = inner;
+    const nextCutArea = LayoutUtils.area.toWholeNumber(inner);
+    this._editionParams.cut = nextCutArea;
     this.reDraw();
 
-    this._store.setCrop(LayoutUtils.area.toCardinal(inner));
-    return inner;
+    this._store.setCrop(LayoutUtils.area.toCardinal(nextCutArea));
+    return nextCutArea;
   }
 
   /**
