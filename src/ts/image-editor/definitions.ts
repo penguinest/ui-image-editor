@@ -1,5 +1,6 @@
 import { TrackEventsVault, TrackEventVault } from './helpers/events/definitions';
 import { LayoutDefinitions } from './helpers/layout';
+import { Store } from './store';
 
 //#region ENUMS
 /**
@@ -28,7 +29,8 @@ export type ConstructorParameters = {
   canvas: HTMLCanvasElement;
   wrapper: HTMLDivElement;
   mode: EditorMode;
-  lockedOutputSize?: LayoutDefinitions.Size;
+  lockedOutputSize: LayoutDefinitions.Size | null;
+  store: Store;
 };
 
 // Main intention here is accept more event in future

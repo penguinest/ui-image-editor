@@ -7,7 +7,8 @@ import CanvasHandler from '../canvas-handler';
 import { EventDefinitions, EventUtils } from '../../helpers/events';
 import { LayoutDefinitions, LayoutUtils } from '../../helpers/layout';
 import { EditorMode, EditorTool } from '../../definitions';
-// CONTINUAR AQUI
+import { CardinalArea } from '../../helpers/layout/definitions';
+
 export default class implements EditorTool {
   public readonly mode = EditorMode.CROP;
   private readonly _corners: CropAreaCorners;
@@ -56,6 +57,50 @@ export default class implements EditorTool {
   //#endregion GETTERS
 
   //#region PUBLIC METHODS
+  public updateSizeFromInterface(value: CardinalArea) {
+    if (!this._canvasHandler.snapshot.edition.cut) {
+      return;
+    }
+
+    const innerCut = LayoutUtils.area.fromCardinal(this._canvasHandler.snapshot.edition.cut);
+
+    const { width: maxWidth, height: maxHeight } = this._canvasHandler.snapshot.image;
+    let { left, top, right, bottom } = LayoutUtils.area.fromCardinal(value);
+
+    const horizontalDelta = innerCut.left - left || innerCut.right - right;
+    const verticalDelta = innerCut.top - top || innerCut.bottom - bottom;
+
+    if (horizontalDelta) {
+      top = Math.max(0, top);
+      bottom = Math.min(maxHeight, bottom);
+      left = Math.min(Math.max(0, left), Math.max(1, maxWidth - value.width));
+      right = Math.max(Math.min(maxWidth, right), left);
+    } else if (verticalDelta) {
+      left = Math.max(0, left);
+      right = Math.min(maxWidth, right);
+      top = Math.min(Math.max(0, top), Math.max(0, maxHeight - value.height));
+      bottom = Math.max(Math.min(maxHeight, bottom), top);
+    }
+
+    const sanitizedPosition = LayoutUtils.area.toWholeNumber(
+      this._calculeAreaByLockedOutput({
+        area: {
+          bottom,
+          left,
+          right,
+          top
+        },
+        deltas: {
+          x: horizontalDelta,
+          y: verticalDelta
+        },
+        restrictedOutput: this._canvasHandler.snapshot.edition.output
+      })
+    );
+
+    this._setPositions(sanitizedPosition);
+  }
+
   /**
    * Reset all `corners` positions.
    */
@@ -85,14 +130,44 @@ export default class implements EditorTool {
    */
   private _boundaryByPosition(position: LayoutDefinitions.Position): BoundaryIdentity {
     const { x, y } = position;
-    const innerCut = this._canvasHandler.snapshot.edition.cut;
 
-    if (innerCut) {
+    if (this._canvasHandler.snapshot.edition.cut) {
+      const innerCut = LayoutUtils.area.fromCardinal(this._canvasHandler.snapshot.edition.cut);
       if (x >= innerCut.left && x <= innerCut.right && y >= innerCut.top && y <= innerCut.bottom) {
         return BoundaryIdentity.INNER;
       }
     }
     return BoundaryIdentity.OUTER;
+  }
+  private _calculeAreaByLockedOutput({
+    area,
+    deltas,
+    restrictedOutput
+  }: {
+    area: LayoutDefinitions.Area;
+    deltas: LayoutDefinitions.Position;
+    restrictedOutput?: LayoutDefinitions.Size | null;
+  }): LayoutDefinitions.Area {
+    if (restrictedOutput) {
+      const image = this._canvasHandler.snapshot.image;
+      const { width: lockedW, height: lockedH } = restrictedOutput;
+
+      if (deltas.x !== 0) {
+        const expectedW = Math.min(area.right - area.left, image.width);
+        if (deltas.y > 0) area.bottom = area.top + (lockedH / lockedW) * expectedW;
+        else area.top = area.bottom - (lockedH / lockedW) * expectedW;
+      }
+
+      if (deltas.y !== 0) {
+        const expectedH = Math.min(area.bottom - area.top, image.height);
+        if (deltas.x > 0) {
+          area.right = area.left + (lockedW / lockedH) * expectedH;
+        } else {
+          area.left = area.right - (lockedW / lockedH) * expectedH;
+        }
+      }
+    }
+    return area;
   }
   /**
    * Transform windows mouse/touch position into loaded image.
@@ -182,7 +257,7 @@ export default class implements EditorTool {
       area.top = position.y - DEFAULT_MIN_SIZE;
     }
 
-    return area;
+    return this._calculeAreaByLockedOutput({ area, deltas });
   }
 
   /**
@@ -195,7 +270,8 @@ export default class implements EditorTool {
       throw new Error('Invalid crop area.');
     }
 
-    let { bottom, left, right, top } = cropArea;
+    let { bottom, left, right, top } = LayoutUtils.area.fromCardinal(cropArea);
+    const deltas = { x: 0, y: 0 };
 
     //#region calcule horizontal position
     switch (cornerIdentity) {
@@ -205,6 +281,7 @@ export default class implements EditorTool {
         {
           const gap = Math.max(right - position.x, DEFAULT_MIN_SIZE);
           left = right - gap;
+          deltas.x = -gap;
         }
         break;
       case CornerIdentity.RB:
@@ -213,6 +290,7 @@ export default class implements EditorTool {
         {
           const gap = Math.max(position.x - left, DEFAULT_MIN_SIZE);
           right = left + gap;
+          deltas.x = gap;
         }
         break;
     }
@@ -226,6 +304,7 @@ export default class implements EditorTool {
         {
           const gap = Math.max(bottom - position.y, DEFAULT_MIN_SIZE);
           top = bottom - gap;
+          deltas.y = -gap;
         }
         break;
       case CornerIdentity.RB:
@@ -234,17 +313,28 @@ export default class implements EditorTool {
         {
           const gap = Math.max(position.y - top, DEFAULT_MIN_SIZE);
           bottom = top + gap;
+          deltas.y = gap;
         }
         break;
       //#endregion calcule vertical position
     }
 
-    this._setPositions({
-      bottom,
-      left,
-      right,
-      top
+    const area = this._calculeAreaByLockedOutput({
+      area: {
+        bottom,
+        left,
+        right,
+        top
+      },
+      deltas,
+      restrictedOutput: this._canvasHandler.snapshot.edition.output
     });
+
+    if (!LayoutUtils.area.isValid(area, this._canvasHandler.snapshot.image)) {
+      return;
+    }
+
+    this._setPositions(area);
   }
 
   /**
@@ -257,7 +347,7 @@ export default class implements EditorTool {
     if (innerAreaPosition && startPosition) {
       const outerBoundaries = this._canvasHandler.snapshot.image;
 
-      let { left, right, top, bottom } = innerAreaPosition;
+      let { left, right, top, bottom } = LayoutUtils.area.fromCardinal(innerAreaPosition);
 
       const deltas = calculeMoveDeltas(startPosition, position);
       const moveDeltas = {
@@ -311,7 +401,7 @@ export default class implements EditorTool {
    * Set corner position.
    */
   private _setPositions(area: LayoutDefinitions.Area) {
-    const { bottom, left, right, top } = this._canvasHandler.setInnerArea(area);
+    const { bottom, left, right, top } = this._canvasHandler.setCropArea(area);
 
     this._corners[CornerIdentity.LT].setPosition({ x: left, y: top });
     this._corners[CornerIdentity.LM].setPosition({ x: left, y: top + (bottom - top) / 2 });

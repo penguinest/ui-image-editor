@@ -45,18 +45,11 @@ export type Canvas = {
 
 export type EditionParams = {
   /** Effective cut area expressed with **image dimensions**. */
-  cut?: Area;
+  cut: CardinalArea | null;
+  /** Scaled dimensions, in px, for the edited image. Only scale down is allowed. */
+  output: Size | null;
   /** Between canvas & image. Should be smaller than (or equal to) 1. */
   ratio: Ratio;
-  restrictions: {
-    /** Ratio between **horizontal** and ** vertical** sizes.
-     * - Landscape: `dimensionRatio > 1`
-     * - Portrait: `dimensionRatio < 1`
-     * - Square: `dimensionRatio === 0`
-     */
-    shapeRatio?: number;
-    lockedOutputSize?: Size;
-  };
 };
 
 /**

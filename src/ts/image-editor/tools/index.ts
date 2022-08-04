@@ -2,9 +2,18 @@ import CropCornerHandler from '@/ts/image-editor/tools/cropper-handler';
 import CanvasHandler from '@/ts/image-editor/tools/canvas-handler';
 import { EditorMode } from '../definitions';
 import { TrackEventsVault } from '../helpers/events/definitions';
-import { LayoutDefinitions } from '../helpers/layout';
-import { Area } from '../helpers/layout/definitions';
+import { LayoutDefinitions, LayoutUtils } from '../helpers/layout';
+import { Area, CardinalArea } from '../helpers/layout/definitions';
 import ImageManipulator from './image-manipulator/image-manipulator';
+import { Store } from '../store';
+
+type ConfigParams = {
+  canvas: HTMLCanvasElement;
+  mode: EditorMode;
+  restrictedOutput?: LayoutDefinitions.Size;
+  store: Store;
+  wrapper: HTMLDivElement;
+};
 
 export default class {
   private readonly _mode: EditorMode;
@@ -12,9 +21,9 @@ export default class {
   private _cropperHandler: CropCornerHandler | null = null;
   private readonly _mouseEvents: TrackEventsVault;
 
-  constructor(config: { canvas: HTMLCanvasElement; mode: EditorMode; restrictedOutput?: LayoutDefinitions.Size; wrapper: HTMLDivElement }) {
-    const { canvas, mode, restrictedOutput, wrapper } = config;
-    this._canvasHandler = new CanvasHandler({ canvas, restrictedOutput, wrapper });
+  constructor(config: ConfigParams) {
+    const { canvas, mode, restrictedOutput, store, wrapper } = config;
+    this._canvasHandler = new CanvasHandler({ canvas, restrictedOutput, store, wrapper });
     this._mode = mode;
 
     if (this._isModeSelected(EditorMode.CROP)) {
@@ -25,46 +34,81 @@ export default class {
     this._mouseEvents = this._createMouseEvents();
   }
 
-  public apply(): string {
-    const { ctx } = this._canvasHandler;
-    const imageManipulator = ImageManipulator(ctx);
+  //#region PUBLIC METHODS
+  /** Perform image manipulation using the given modifications. */
+  public async apply(): Promise<string> {
+    const { src } = this._canvasHandler;
+
+    if (!src) {
+      throw new Error('Image is not set');
+    }
+
+    let imageManipulator = await ImageManipulator(src);
 
     if (this._isModeSelected(EditorMode.CROP)) {
       const cutArea = this.cutArea();
       if (cutArea) {
-        return imageManipulator.crop(cutArea).url('jpg');
+        imageManipulator = imageManipulator.crop(cutArea);
       }
     }
+
     if (this._isModeSelected(EditorMode.SCALE)) {
-      // TODO: IMPLEMENT ME
+      const outputSize = this._canvasHandler.snapshot.edition.output;
+      if (outputSize) {
+        imageManipulator = await imageManipulator.scale(outputSize);
+      }
     }
-    return imageManipulator.url('jpg');
+    return imageManipulator.url('jpeg');
   }
 
-  public configureEventListenersState(onInitialize: boolean) {
-    this._canvasHandler.configureEventListenersState({
+  /**
+   * Update events binding.
+   * @param onInitialize [true] -> add / [false] -> remove
+   */
+  public setEventListenersState(onInitialize: boolean) {
+    this._canvasHandler.setEventListenersState({
       canvasEvents: this._mouseEvents,
       onInitialize
     });
   }
 
+  /**
+   * Returns the current cropped area, if any.
+   */
   public cutArea(): Area | null {
     const area = this._canvasHandler.snapshot.edition.cut;
+    if (!area) {
+      return null;
+    }
 
-    return area ?? null;
+    return LayoutUtils.area.fromCardinal(area);
+  }
+
+  public setCropArea(value: CardinalArea) {
+    this._cropperHandler?.updateSizeFromInterface(value);
   }
 
   public setOutputSize(size: LayoutDefinitions.Size | null): void {
-    this._canvasHandler.updateRestrictedOutputSize(size);
+    const result = this._canvasHandler.updateRestrictedOutputSize(size);
+
+    if (result) {
+      this.setCropArea(result);
+    }
   }
 
-  public setSizes(): void {
+  /**
+   * Adjust canvas and crop area to the wrapper layout.
+   */
+  public onResize(): void {
     if (this._canvasHandler.updateSizes()) {
       this._canvasHandler.reDraw();
       this._cropperHandler?.updateSize();
     }
   }
 
+  /**
+   * Update printed image on the canvas. This implies reseting all the modifications & adjusting canvas sizes.
+   */
   public updateImage(image: HTMLImageElement) {
     if (!this._canvasHandler.setImage(image)) {
       return;
@@ -73,9 +117,12 @@ export default class {
     this._canvasHandler.reset();
     this._cropperHandler?.reset();
 
-    this.setSizes();
+    // Adjust canvas to the new image layout.
+    this.onResize();
   }
+  //#endregion PUBLIC METHODS
 
+  //#region PRIVATE METHODS
   private _isModeSelected(mode: EditorMode): boolean {
     return (this._mode & mode) === mode;
   }
@@ -104,4 +151,5 @@ export default class {
     });
     return events;
   }
+  //#endregion PRIVATE METHODS
 }

@@ -1,5 +1,7 @@
 import { ConstructorParameters } from './definitions';
 import { LayoutDefinitions } from './helpers/layout';
+import { CardinalArea } from './helpers/layout/definitions';
+import { Store } from './store';
 import Tools from './tools';
 
 export * from './definitions';
@@ -9,12 +11,13 @@ class ImageEditor {
   private _image: HTMLImageElement | null = null;
 
   constructor(config: ConstructorParameters) {
-    const { canvas, wrapper, lockedOutputSize, mode } = config;
+    const { canvas, wrapper, lockedOutputSize, mode, store } = config;
 
     this._tools = new Tools({
       canvas,
       mode,
-      restrictedOutput: lockedOutputSize,
+      restrictedOutput: lockedOutputSize ?? undefined,
+      store,
       wrapper
     });
 
@@ -34,16 +37,27 @@ class ImageEditor {
     if (!this._image) {
       return false;
     }
+
     const cutArea = this._tools.cutArea();
+
     if (!cutArea) {
       return false;
     }
-    const url = this._tools.apply();
 
+    const url = await this._tools.apply();
+
+    if (url) {
+      this._saveFile(url);
+      return true;
+    }
     // Make something useful with the result.
     // I.e stored result on server side or
     // implement a image preview for user validation
-    return !!url;
+    return false;
+  }
+
+  public setCropArea(value: CardinalArea) {
+    this._tools.setCropArea(value);
   }
 
   public async setImageSource(source: string): Promise<boolean> {
@@ -78,7 +92,7 @@ class ImageEditor {
       action('resize', (event) => this._onResize(event));
     }
 
-    this._tools.configureEventListenersState(onInitialize);
+    this._tools.setEventListenersState(onInitialize);
   }
 
   /**
@@ -88,6 +102,7 @@ class ImageEditor {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.src = source;
+      img.crossOrigin = 'anonymous';
       img.onerror = reject;
       img.onload = () => {
         resolve(img);
@@ -99,11 +114,21 @@ class ImageEditor {
    * Windows `onresize` event handler.
    * @see _configureEventListenersState
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private _onResize(_event: UIEvent): void {
     if (this._image) {
-      this._tools.setSizes();
+      this._tools.onResize();
     }
+  }
+  private _saveFile(buffer: string) {
+    const downloadAnchorElement = document.createElement('a');
+    //downloadAnchorElement.id = 'download_file_anchor';
+    document.body.appendChild(downloadAnchorElement);
+
+    downloadAnchorElement.href = buffer;
+    downloadAnchorElement.target = '_self';
+    downloadAnchorElement.download = 'edited_file';
+    downloadAnchorElement.click();
+    document.body.removeChild(downloadAnchorElement);
   }
   //#endregion PRIVATE METHODS
 }
@@ -114,17 +139,22 @@ class ImageEditor {
  */
 export default class {
   private _handler: ImageEditor | null = null;
+  private readonly _store = new Store();
+
+  get state() {
+    return this._store.state;
+  }
 
   /** Creates an image editor. Only one instance could be initiated.
    * @requires destroy on component unmount
    * @throw {canvas} Argument must have a valid 2d context
    */
-  public initialize(config: ConstructorParameters): boolean {
+  public initialize(config: Omit<ConstructorParameters, 'store'>): boolean {
     try {
       if (this._handler) {
         throw new Error('ImageEditor is already initialized.');
       }
-      this._handler = new ImageEditor(config);
+      this._handler = new ImageEditor({ ...config, store: this._store });
 
       return true;
     } catch (error) {
@@ -160,12 +190,18 @@ export default class {
       return false;
     }
 
-    return this._handler.setImageSource(source);
+    return await this._handler.setImageSource(source);
   }
 
   public setOutputSize(size: LayoutDefinitions.Size | null): void {
     if (this._handler) {
       this._handler.setOutputSize(size);
+    }
+  }
+
+  public setCropAreaPosition(value: CardinalArea) {
+    if (this._handler) {
+      this._handler.setCropArea(value);
     }
   }
 }
