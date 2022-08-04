@@ -112,10 +112,10 @@ export default defineComponent({
 <style lang="scss" scoped>
 .image-tools {
   display: flex;
-  flex-flow: row nowrap;
-  margin: 12px auto;
+  flex-flow: row wrap;
+  margin: 12px;
   gap: 18px;
-  justify-content: space-between;
+  justify-content: center;
   p {
     margin: 0;
   }
@@ -139,6 +139,7 @@ export default defineComponent({
   }
   @media screen and (min-width: 768px) {
     flex-flow: column nowrap;
+    justify-content: space-between;
     margin: auto 12px;
     .selection-size {
       display: flex;
