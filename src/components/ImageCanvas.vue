@@ -104,8 +104,9 @@ export default defineComponent({
 .canvas-wrapper {
   display: grid;
   flex: 1;
-  width: 80%;
+  width: 98%;
   margin: auto;
+  box-sizing: border-box;
   border: 2px solid rgb(187, 255, 0);
   border-radius: 2px;
   background-color: rgb(187, 187, 187);
