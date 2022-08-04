@@ -20,13 +20,11 @@ export default class {
   private readonly _canvasHandler: CanvasHandler;
   private _cropperHandler: CropCornerHandler | null = null;
   private readonly _mouseEvents: TrackEventsVault;
-  private readonly _store: Store;
 
   constructor(config: ConfigParams) {
     const { canvas, mode, restrictedOutput, store, wrapper } = config;
     this._canvasHandler = new CanvasHandler({ canvas, restrictedOutput, store, wrapper });
     this._mode = mode;
-    this._store = store;
 
     if (this._isModeSelected(EditorMode.CROP)) {
       this._cropperHandler = new CropCornerHandler(this._canvasHandler);
@@ -36,6 +34,8 @@ export default class {
     this._mouseEvents = this._createMouseEvents();
   }
 
+  //#region PUBLIC METHODS
+  /** Perform image manipulation using the given modifications. */
   public async apply(): Promise<string> {
     const { src } = this._canvasHandler;
 
@@ -53,7 +53,7 @@ export default class {
     }
 
     if (this._isModeSelected(EditorMode.SCALE)) {
-      const outputSize = this._canvasHandler.snapshot.edition.restrictions.lockedOutputSize;
+      const outputSize = this._canvasHandler.snapshot.edition.output;
       if (outputSize) {
         imageManipulator = await imageManipulator.scale(outputSize);
       }
@@ -61,17 +61,27 @@ export default class {
     return imageManipulator.url('jpeg');
   }
 
-  public configureEventListenersState(onInitialize: boolean) {
-    this._canvasHandler.configureEventListenersState({
+  /**
+   * Update events binding.
+   * @param onInitialize [true] -> add / [false] -> remove
+   */
+  public setEventListenersState(onInitialize: boolean) {
+    this._canvasHandler.setEventListenersState({
       canvasEvents: this._mouseEvents,
       onInitialize
     });
   }
 
+  /**
+   * Returns the current cropped area, if any.
+   */
   public cutArea(): Area | null {
     const area = this._canvasHandler.snapshot.edition.cut;
+    if (!area) {
+      return null;
+    }
 
-    return area ?? null;
+    return LayoutUtils.area.fromCardinal(area);
   }
 
   public setCropArea(value: CardinalArea) {
@@ -81,19 +91,24 @@ export default class {
   public setOutputSize(size: LayoutDefinitions.Size | null): void {
     const result = this._canvasHandler.updateRestrictedOutputSize(size);
 
-    // ! REFACTOR THIS
     if (result) {
       this.setCropArea(result);
     }
   }
 
-  public setSizes(): void {
+  /**
+   * Adjust canvas and crop area to the wrapper layout.
+   */
+  public onResize(): void {
     if (this._canvasHandler.updateSizes()) {
       this._canvasHandler.reDraw();
       this._cropperHandler?.updateSize();
     }
   }
 
+  /**
+   * Update printed image on the canvas. This implies reseting all the modifications & adjusting canvas sizes.
+   */
   public updateImage(image: HTMLImageElement) {
     if (!this._canvasHandler.setImage(image)) {
       return;
@@ -101,11 +116,13 @@ export default class {
 
     this._canvasHandler.reset();
     this._cropperHandler?.reset();
-    this._store.reset();
 
-    this.setSizes();
+    // Adjust canvas to the new image layout.
+    this.onResize();
   }
+  //#endregion PUBLIC METHODS
 
+  //#region PRIVATE METHODS
   private _isModeSelected(mode: EditorMode): boolean {
     return (this._mode & mode) === mode;
   }
@@ -134,4 +151,5 @@ export default class {
     });
     return events;
   }
+  //#endregion PRIVATE METHODS
 }

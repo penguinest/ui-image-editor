@@ -29,7 +29,7 @@ export class Store {
     this._state.outputSize = outputSize;
   }
 
-  public setCrop(value: CardinalArea) {
+  public setCrop(value: CardinalArea | null) {
     this._state.crop = value;
   }
 

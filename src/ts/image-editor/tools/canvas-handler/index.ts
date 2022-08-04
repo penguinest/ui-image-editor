@@ -2,7 +2,7 @@ import { CutArea, CUT_AREA_STYLE } from './definitions';
 import { ImageEditorMouseEvents } from '../../definitions';
 import { LayoutDefinitions, LayoutUtils } from '../../helpers/layout';
 import { EventDefinitions, EventUtils } from '../../helpers/events';
-import { EditionParams, EditorSnapShot } from '../../helpers/layout/definitions';
+import { EditorSnapShot } from '../../helpers/layout/definitions';
 import { Store } from '../../store';
 import { DEFAULT_MIN_SIZE } from '../cropper-handler/definitions';
 
@@ -14,8 +14,9 @@ export default class {
   private readonly _ctx: CanvasRenderingContext2D;
   private readonly _store: Store;
   private _image: HTMLImageElement | null = null;
+  private _ratio: LayoutDefinitions.Ratio = LayoutUtils.initialize.units.ratio();
+  /** Canvas' parent. In charge of keep the right dimensions provided the users viewport. */
   private _wrapper: HTMLDivElement;
-  private _editionParams: EditionParams = LayoutUtils.initialize.snapshot.edition();
 
   constructor(config: { canvas: HTMLCanvasElement; restrictedOutput?: LayoutDefinitions.Size; store: Store; wrapper: HTMLDivElement }) {
     const { canvas, restrictedOutput, store, wrapper } = config;
@@ -31,10 +32,7 @@ export default class {
     this._wrapper = wrapper;
 
     if (restrictedOutput) {
-      this._editionParams.restrictions = {
-        //shapeRatio: IMPLEMENT ME
-        lockedOutputSize: restrictedOutput
-      };
+      this._store.setOutput(restrictedOutput);
     }
   }
 
@@ -57,7 +55,11 @@ export default class {
         relativePosition: LayoutUtils.sizeFrom.relativePosition(this._canvas),
         size: LayoutUtils.sizeFrom.canvas(this._canvas)
       },
-      edition: this._editionParams,
+      edition: {
+        ratio: this._ratio,
+        cut: this._store.state.crop,
+        output: this._store.state.outputSize
+      },
       image: this._image ? LayoutUtils.sizeFrom.image(this._image) : LayoutUtils.initialize.snapshot.image(),
       wrapper: LayoutUtils.sizeFrom.offset(this._wrapper)
     };
@@ -67,9 +69,9 @@ export default class {
 
   //#region PUBLIC METHODS
   /**
-   * Bind mouse and touch events to their handlers.
+   * Update mouse and touch events to their handlers.
    */
-  public configureEventListenersState(config: { canvasEvents: ImageEditorMouseEvents; onInitialize: boolean }): void {
+  public setEventListenersState(config: { canvasEvents: ImageEditorMouseEvents; onInitialize: boolean }): void {
     // Do not use `const actions = config.onInitialize ? this._canvas.addEventListener : this._canvas.removeEventListener`.
     // This will mislead event into `window` rather than into `canvas` itself.
     const actions = config.onInitialize
@@ -109,18 +111,23 @@ export default class {
     return false;
   }
 
+  /**
+   * Clean up any restriction on the current edition
+   */
   public reset() {
-    if (this._editionParams.cut) {
-      delete this._editionParams.cut;
-    }
+    this._store.setCrop(null);
+    this._store.setOutput(null);
   }
 
-  public setInnerArea(inner: LayoutDefinitions.Area): LayoutDefinitions.Area {
+  /**
+   * Sanitize a provided area and store it.
+   * @returns Sanitazed crop area.
+   */
+  public setCropArea(inner: LayoutDefinitions.Area): LayoutDefinitions.Area {
     const nextCutArea = LayoutUtils.area.toWholeNumber(inner);
-    this._editionParams.cut = nextCutArea;
+    this._store.setCrop(LayoutUtils.area.toCardinal(nextCutArea));
     this.reDraw();
 
-    this._store.setCrop(LayoutUtils.area.toCardinal(nextCutArea));
     return nextCutArea;
   }
 
@@ -137,6 +144,14 @@ export default class {
     return false;
   }
 
+  /**
+   * Set output size from UI interface (mainly).
+   * This method perform the following tasks:
+   * - Validate min size contract
+   * - Adjust crop area, if any
+   * - Validate configuration size, regarding the image sizes.
+   * - Store output size into store.
+   */
   public updateRestrictedOutputSize(size: LayoutDefinitions.Size | null): LayoutDefinitions.CardinalArea | null {
     if (size) {
       const restrictedWidth = Math.min(Math.max(DEFAULT_MIN_SIZE, size.width), this._image?.width || Number.MAX_VALUE);
@@ -148,38 +163,39 @@ export default class {
 
       this._store.setOutput(lockedOutputSize);
 
-      this._editionParams.restrictions = {
-        ...this._editionParams.restrictions,
-        lockedOutputSize
-      };
+      const cut = this._store.state.crop;
 
-      if (this._editionParams.cut) {
-        const wRatio = restrictedWidth / restrictedHeight;
-        const area = LayoutUtils.area.toCardinal(this._editionParams.cut);
-        const optionOne = {
-          width: Math.max(area.width, restrictedWidth),
-          height: Math.max(area.width, restrictedWidth) / wRatio
-        };
-        const optionTwo = {
-          height: Math.max(area.height, restrictedHeight),
-          width: Math.max(area.height, restrictedHeight) * wRatio
-        };
-        const result = optionOne.height <= this._image!.height && optionOne.width <= this._image!.width ? optionOne : optionTwo;
-        const p = {
-          x: Math.min(area.x, this._image!.width - result.width),
-          y: Math.min(area.y, this._image!.height - result.height)
-        };
-        const t = {
-          ...p,
-          ...result
+      if (cut) {
+        const restrictedRatio = restrictedWidth / restrictedHeight;
+
+        const landscapeConfiguration = {
+          width: Math.max(cut.width, restrictedWidth),
+          height: Math.max(cut.width, restrictedWidth) / restrictedRatio
         };
 
-        return t;
+        const portraitConfiguration = {
+          height: Math.max(cut.height, restrictedHeight),
+          width: Math.max(cut.height, restrictedHeight) * restrictedRatio
+        };
+
+        const mostLikelySizeToFitConfiguration =
+          landscapeConfiguration.height <= this._image!.height && landscapeConfiguration.width <= this._image!.width
+            ? landscapeConfiguration
+            : portraitConfiguration;
+
+        const mostLikelyPositionToFit = {
+          x: Math.min(cut.x, this._image!.width - mostLikelySizeToFitConfiguration.width),
+          y: Math.min(cut.y, this._image!.height - mostLikelySizeToFitConfiguration.height)
+        };
+
+        return {
+          ...mostLikelyPositionToFit,
+          ...mostLikelySizeToFitConfiguration
+        };
       }
 
       return null;
     } else {
-      delete this._editionParams.restrictions!.lockedOutputSize;
       this._store.setOutput(null);
     }
 
@@ -215,9 +231,8 @@ export default class {
 
   //#region PRIVATE METHODS
   private _cutAreaCoodinates(): CutArea | null {
-    if (this._editionParams.cut && this._image) {
-      const { cut } = this._editionParams;
-
+    const cut = this._store.state.crop;
+    if (cut && this._image) {
       const outer = {
         left: 0,
         bottom: this._image.height,
@@ -226,7 +241,7 @@ export default class {
       };
 
       return {
-        inner: cut,
+        inner: LayoutUtils.area.fromCardinal(cut),
         outer
       };
     }
@@ -234,7 +249,7 @@ export default class {
   }
 
   /**
-   * Create inner and outer areas.
+   * Create inner (cut) and outer areas.
    */
   private _fillCutArea(): void {
     const cutArea = this._cutAreaCoodinates();
@@ -311,12 +326,7 @@ export default class {
       height: this._canvas.clientHeight
     };
 
-    const ratio = LayoutUtils.calculeRatio({ canvas, target: this._image });
-
-    this._editionParams = {
-      ...this._editionParams,
-      ratio
-    };
+    this._ratio = LayoutUtils.calculeRatio({ canvas, target: this._image });
   }
   //#endregion PRIVATE METHODS
 }

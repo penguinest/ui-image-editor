@@ -66,7 +66,8 @@ const snapshot = {
   image: (): Size => units.size(),
   edition: (): EditionParams => ({
     ratio: units.ratio(),
-    restrictions: {}
+    cut: null,
+    output: null
   }),
   wrapper: (): Size => units.size()
 };

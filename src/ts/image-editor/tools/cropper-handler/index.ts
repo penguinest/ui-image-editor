@@ -58,11 +58,11 @@ export default class implements EditorTool {
 
   //#region PUBLIC METHODS
   public updateSizeFromInterface(value: CardinalArea) {
-    const innerCut = this._canvasHandler.snapshot.edition.cut;
-
-    if (!innerCut) {
+    if (!this._canvasHandler.snapshot.edition.cut) {
       return;
     }
+
+    const innerCut = LayoutUtils.area.fromCardinal(this._canvasHandler.snapshot.edition.cut);
 
     const { width: maxWidth, height: maxHeight } = this._canvasHandler.snapshot.image;
     let { left, top, right, bottom } = LayoutUtils.area.fromCardinal(value);
@@ -83,18 +83,19 @@ export default class implements EditorTool {
     }
 
     const sanitizedPosition = LayoutUtils.area.toWholeNumber(
-      this._calculeAreaByLockedOutput(
-        {
+      this._calculeAreaByLockedOutput({
+        area: {
           bottom,
           left,
           right,
           top
         },
-        {
+        deltas: {
           x: horizontalDelta,
           y: verticalDelta
-        }
-      )
+        },
+        restrictedOutput: this._canvasHandler.snapshot.edition.output
+      })
     );
 
     this._setPositions(sanitizedPosition);
@@ -129,24 +130,34 @@ export default class implements EditorTool {
    */
   private _boundaryByPosition(position: LayoutDefinitions.Position): BoundaryIdentity {
     const { x, y } = position;
-    const innerCut = this._canvasHandler.snapshot.edition.cut;
 
-    if (innerCut) {
+    if (this._canvasHandler.snapshot.edition.cut) {
+      const innerCut = LayoutUtils.area.fromCardinal(this._canvasHandler.snapshot.edition.cut);
       if (x >= innerCut.left && x <= innerCut.right && y >= innerCut.top && y <= innerCut.bottom) {
         return BoundaryIdentity.INNER;
       }
     }
     return BoundaryIdentity.OUTER;
   }
-  private _calculeAreaByLockedOutput(area: LayoutDefinitions.Area, deltas: LayoutDefinitions.Position): LayoutDefinitions.Area {
-    if (this._canvasHandler.snapshot.edition.restrictions.lockedOutputSize) {
+  private _calculeAreaByLockedOutput({
+    area,
+    deltas,
+    restrictedOutput
+  }: {
+    area: LayoutDefinitions.Area;
+    deltas: LayoutDefinitions.Position;
+    restrictedOutput?: LayoutDefinitions.Size | null;
+  }): LayoutDefinitions.Area {
+    if (restrictedOutput) {
       const image = this._canvasHandler.snapshot.image;
-      const { width: lockedW, height: lockedH } = this._canvasHandler.snapshot.edition.restrictions.lockedOutputSize;
+      const { width: lockedW, height: lockedH } = restrictedOutput;
+
       if (deltas.x !== 0) {
         const expectedW = Math.min(area.right - area.left, image.width);
         if (deltas.y > 0) area.bottom = area.top + (lockedH / lockedW) * expectedW;
         else area.top = area.bottom - (lockedH / lockedW) * expectedW;
       }
+
       if (deltas.y !== 0) {
         const expectedH = Math.min(area.bottom - area.top, image.height);
         if (deltas.x > 0) {
@@ -155,19 +166,6 @@ export default class implements EditorTool {
           area.left = area.right - (lockedW / lockedH) * expectedH;
         }
       }
-
-      /*const cardinal = LayoutUtils.area.toCardinal(area);
-      // CONTINUAR AQUÍ: EVITAR QUE AL TENER LOCKEDOUTPUT SE GENERE UN CORTE MAYOR QUE EL AREA DISPONIBLE
-      if (
-        image.width <
-        cardinal.x + cardinal.width
-      ) {
-        if (deltas.x > 0) {
-          area.right = image.width - area.left;
-        } else {
-          area.left = ;
-        }
-      }*/
     }
     return area;
   }
@@ -259,7 +257,7 @@ export default class implements EditorTool {
       area.top = position.y - DEFAULT_MIN_SIZE;
     }
 
-    return this._calculeAreaByLockedOutput(area, deltas);
+    return this._calculeAreaByLockedOutput({ area, deltas });
   }
 
   /**
@@ -272,7 +270,7 @@ export default class implements EditorTool {
       throw new Error('Invalid crop area.');
     }
 
-    let { bottom, left, right, top } = cropArea;
+    let { bottom, left, right, top } = LayoutUtils.area.fromCardinal(cropArea);
     const deltas = { x: 0, y: 0 };
 
     //#region calcule horizontal position
@@ -321,15 +319,16 @@ export default class implements EditorTool {
       //#endregion calcule vertical position
     }
 
-    const area = this._calculeAreaByLockedOutput(
-      {
+    const area = this._calculeAreaByLockedOutput({
+      area: {
         bottom,
         left,
         right,
         top
       },
-      deltas
-    );
+      deltas,
+      restrictedOutput: this._canvasHandler.snapshot.edition.output
+    });
 
     if (!LayoutUtils.area.isValid(area, this._canvasHandler.snapshot.image)) {
       return;
@@ -348,7 +347,7 @@ export default class implements EditorTool {
     if (innerAreaPosition && startPosition) {
       const outerBoundaries = this._canvasHandler.snapshot.image;
 
-      let { left, right, top, bottom } = innerAreaPosition;
+      let { left, right, top, bottom } = LayoutUtils.area.fromCardinal(innerAreaPosition);
 
       const deltas = calculeMoveDeltas(startPosition, position);
       const moveDeltas = {
@@ -402,7 +401,7 @@ export default class implements EditorTool {
    * Set corner position.
    */
   private _setPositions(area: LayoutDefinitions.Area) {
-    const { bottom, left, right, top } = this._canvasHandler.setInnerArea(area);
+    const { bottom, left, right, top } = this._canvasHandler.setCropArea(area);
 
     this._corners[CornerIdentity.LT].setPosition({ x: left, y: top });
     this._corners[CornerIdentity.LM].setPosition({ x: left, y: top + (bottom - top) / 2 });

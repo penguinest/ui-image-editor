@@ -9,18 +9,15 @@ export * from './definitions';
 class ImageEditor {
   private readonly _tools: Tools;
   private _image: HTMLImageElement | null = null;
-  private readonly _store;
 
   constructor(config: ConstructorParameters) {
     const { canvas, wrapper, lockedOutputSize, mode, store } = config;
-
-    this._store = store;
 
     this._tools = new Tools({
       canvas,
       mode,
       restrictedOutput: lockedOutputSize ?? undefined,
-      store: this._store,
+      store,
       wrapper
     });
 
@@ -95,7 +92,7 @@ class ImageEditor {
       action('resize', (event) => this._onResize(event));
     }
 
-    this._tools.configureEventListenersState(onInitialize);
+    this._tools.setEventListenersState(onInitialize);
   }
 
   /**
@@ -119,7 +116,7 @@ class ImageEditor {
    */
   private _onResize(_event: UIEvent): void {
     if (this._image) {
-      this._tools.setSizes();
+      this._tools.onResize();
     }
   }
   private _saveFile(buffer: string) {

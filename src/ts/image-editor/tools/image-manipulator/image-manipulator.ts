@@ -17,22 +17,6 @@ export default async (src: string): Promise<ReturnType<typeof operations>> => {
 
   const image = await loadImage(src);
 
-  //const { image, edition } = snapshot;
-  /*
-  const imageData = context.getImageData(0, 0, image.width, image.height);
-
-  dataCanvas.width = snap;
-  dataCanvas.height = context.canvas.height;
-  dataContext.putImageData(imageData, 0, 0);
-*/
-
-  /*
-  const cutArea: LayoutDefinitions.Area = edition.cut ?? { top: 0, right: image.width, bottom: image.height, left: 0 };
-  const { height, width, x, y } = LayoutUtils.area.toCardinal(cutArea);
-  const scale = edition.restrictions.lockedOutputSize ?? image;
-
-  dataContext.drawImage(canvas, x, y, width, height, 0, 0, scale.width, scale.height);
-*/
   return operations({ el: dataCanvas, id: dataCanvasId }, image);
 };
 
